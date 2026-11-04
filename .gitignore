@@ -1,0 +1,38 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# --- Virtual environments (uv creates .venv) ---
+.venv/
+venv/
+
+# --- Tooling caches ---
+.tox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Secrets / local config: NEVER commit real values ---
+.env
+.env.*
+!.env.example
+
+# --- Local file storage used in development instead of S3 ---
+storage/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- AWS Lambda build artifacts ---
+lambda/**/package/
+*.zip

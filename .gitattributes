@@ -1,0 +1,16 @@
+# Store every text file with LF line endings in the repository.
+# Docker images, shell scripts and GitHub Actions runners are Linux:
+# a CRLF in an entrypoint script breaks it with "bad interpreter".
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files: never touch them.
+*.pdf  binary
+*.docx binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
