@@ -1,0 +1,111 @@
+[project]
+name = "project-dashboard"
+version = "0.1.0"
+description = "REST API to create, share and manage projects and their documents."
+readme = "README.md"
+authors = [
+    { name = "Szegény Tamás", email = "116868224+szegenytamas@users.noreply.github.com" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.120",
+    "uvicorn[standard]>=0.38",
+    "pydantic-settings>=2.11",
+]
+
+[project.scripts]
+# `project-dashboard` on the command line starts the server (see __main__.py).
+project-dashboard = "project_dashboard.__main__:main"
+
+# Development-only dependencies. They are installed by `uv sync` but are NOT
+# part of the published package or the production Docker image.
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "mypy>=1.18",
+    "pytest>=8.4",
+    "pytest-asyncio>=1.2",
+    "pytest-cov>=7.0",
+    "ruff>=0.14",
+    "tox>=4.30",
+    "tox-uv>=1.28",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------- ruff ----
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes: unused imports/variables, undefined names
+    "I",        # isort: import ordering
+    "UP",       # pyupgrade: modern syntax for our Python version
+    "B",        # bugbear: likely bugs
+    "SIM",      # simplifications
+    "ASYNC",    # blocking calls inside async functions
+    "S",        # bandit: security issues
+    "N",        # naming conventions
+    "RUF",      # ruff-specific rules
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is how pytest works; S101 would flag every test.
+"tests/**" = ["S101"]
+
+# ---------------------------------------------------------------- mypy ----
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+
+# -------------------------------------------------------------- pytest ----
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+source = ["project_dashboard"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+# ----------------------------------------------------------------- tox ----
+# tox runs each check in its own isolated environment, exactly as CI does.
+# `uv-venv-lock-runner` (from tox-uv) installs from uv.lock, so tox, CI and
+# your machine all use the same pinned versions.
+[tool.tox]
+requires = ["tox>=4.30", "tox-uv>=1.28"]
+env_list = ["lint", "type", "test"]
+
+[tool.tox.env_run_base]
+runner = "uv-venv-lock-runner"
+dependency_groups = ["dev"]
+
+[tool.tox.env.lint]
+description = "Lint and check formatting"
+skip_install = true
+commands = [
+    ["ruff", "check", "."],
+    ["ruff", "format", "--check", "."],
+]
+
+[tool.tox.env.type]
+description = "Static type checking"
+commands = [["mypy"]]
+
+[tool.tox.env.test]
+description = "Run tests with coverage"
+commands = [["pytest", "--cov", "--cov-report=term", "--cov-report=xml", { replace = "posargs", extend = true }]]
