@@ -11,6 +11,9 @@ dependencies = [
     "fastapi>=0.120",
     "uvicorn[standard]>=0.38",
     "pydantic-settings>=2.11",
+    "sqlalchemy[asyncio]>=2.1.8",
+    "asyncpg>=0.32.0",
+    "alembic>=1.20.1",
 ]
 
 [project.scripts]
@@ -57,7 +60,8 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 # `assert` is how pytest works; S101 would flag every test.
-"tests/**" = ["S101"]
+# S105/S106: tests use obviously fake passwords and hashes.
+"tests/**" = ["S101", "S105", "S106"]
 
 # ---------------------------------------------------------------- mypy ----
 [tool.mypy]
@@ -65,6 +69,11 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# asyncpg ships no type hints; treat it as untyped instead of failing.
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true
 
 # -------------------------------------------------------------- pytest ----
 [tool.pytest.ini_options]
@@ -77,6 +86,9 @@ addopts = "-ra --strict-markers"
 [tool.coverage.run]
 source = ["project_dashboard"]
 branch = true
+# SQLAlchemy's async layer switches between greenlets; without this, coverage
+# loses track after every `await session.execute(...)` and under-reports.
+concurrency = ["thread", "greenlet"]
 
 [tool.coverage.report]
 show_missing = true
@@ -107,5 +119,9 @@ description = "Static type checking"
 commands = [["mypy"]]
 
 [tool.tox.env.test]
-description = "Run tests with coverage"
+description = "Run tests with coverage (needs PostgreSQL: docker compose up -d db)"
+# tox hides your environment variables from its environments by default, so
+# a clean, reproducible environment is guaranteed. The DB settings must be
+# passed through explicitly (CI sets them; locally they come from .env).
+pass_env = ["POSTGRES_*"]
 commands = [["pytest", "--cov", "--cov-report=term", "--cov-report=xml", { replace = "posargs", extend = true }]]
