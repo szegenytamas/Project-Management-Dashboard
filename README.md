@@ -51,6 +51,8 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [ ] **Phase 6** – Full CI: lint, type-check, tests, build, push to ECR
 - [ ] **Phase 7** – AWS: RDS, S3, EC2, Lambda (size calculation), CD on merge
 - [ ] **Phase 8** – *Optional:* share link via email (SES), image resize
+- [ ] **Phase 9** – *Optional:* web UI – static HTML/JS client of the JSON API
+  (login, project list, project details & documents, invite, share-link landing page)
 
 ## Development workflow
 
