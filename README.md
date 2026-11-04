@@ -4,28 +4,47 @@ A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 1 – project skeleton.** See the roadmap below.
+> Status: **Phase 2 – database layer.** See the roadmap below.
 
 ## Getting started
 
 Requirements: [uv](https://docs.astral.sh/uv/) and Docker Desktop.
 
 ```bash
+cp .env.example .env         # local settings (DB on localhost:5433)
 uv sync                      # create .venv and install everything from uv.lock
+docker compose up -d db      # start PostgreSQL
+uv run alembic upgrade head  # create / update the tables
 uv run tox                   # lint + type-check + tests, exactly like CI
 uv run project-dashboard     # run the API locally with auto-reload
-docker compose up --build    # or: run API + Postgres in containers
 ```
 
-Then open <http://localhost:8000/docs>. Copy `.env.example` to `.env` to change settings.
+Or run everything in containers: `docker compose up --build` starts Postgres,
+runs the migrations, then starts the API. Open <http://localhost:8000/docs>.
 
 | Command | What it does |
 |---|---|
 | `uv run tox -e lint` | `ruff check` + `ruff format --check` |
 | `uv run tox -e type` | `mypy` in strict mode |
-| `uv run tox -e test` | `pytest` with coverage |
+| `uv run tox -e test` | `pytest` with coverage (uses a separate `<db>_test` database) |
 | `uv run ruff format .` | auto-format the code |
 | `uv build` | build the wheel and sdist into `dist/` |
+| `uv run alembic revision --autogenerate -m "..."` | create a migration from model changes – **always review it** |
+| `uv run alembic upgrade head` / `downgrade -1` | apply / undo migrations |
+| `python -m project_dashboard.db.migrate` | apply migrations without `alembic.ini` (containers, servers) |
+
+## Database
+
+| Table | Purpose |
+|---|---|
+| `users` | Accounts: unique `login`, `password_hash` |
+| `projects` | `name`, `description`, `total_size_bytes` (deliberately denormalized sum of document sizes) |
+| `project_members` | Who may access which project, with role `owner` / `participant`; at most one owner per project |
+| `documents` | File metadata (`filename`, `content_type`, `size_bytes`); the bytes live in S3 under `storage_key` |
+
+The schema exists twice: as ORM models + Alembic migrations
+(`src/project_dashboard/db/`) and as plain SQL without an ORM
+(`src/project_dashboard/db/schema.sql`). A test guarantees they are identical.
 
 ## Access model
 
@@ -65,7 +84,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 
 - [x] **Phase 0** – Git repository, GitHub, conventions
 - [x] **Phase 1** – Skeleton: uv, `pyproject.toml`, tox, settings, Dockerfile, Docker Compose (API + Postgres), health check, first CI
-- [ ] **Phase 2** – SQLAlchemy models, Alembic migrations, raw `schema.sql` (without ORM)
+- [x] **Phase 2** – SQLAlchemy models, Alembic migrations, raw `schema.sql` (without ORM)
 - [ ] **Phase 3** – Auth: register, login, JWT
 - [ ] **Phase 4** – Projects, invites, permissions
 - [ ] **Phase 5** – Documents, S3 storage, file validation, project size limit

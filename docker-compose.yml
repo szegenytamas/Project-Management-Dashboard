@@ -1,23 +1,23 @@
 # Local development stack: `docker compose up --build`
-#   API:     http://localhost:8000/docs
-#   Postgres: localhost:5433 (the API starts using it in Phase 2)
+#   API:      http://localhost:8000/docs
+#   Postgres: localhost:5433
+#
+# Start order:  db (healthy)  ->  migrate (runs, exits 0)  ->  api
 #
 # Values like ${POSTGRES_PASSWORD:-dashboard} read from your shell or `.env`,
 # falling back to the default after `:-`. Defaults are for local use only.
 
-services:
-  api:
-    build: .
-    image: project-dashboard:local
-    environment:
-      ENVIRONMENT: local
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-    ports:
-      - "127.0.0.1:8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy  # wait until Postgres accepts connections
+# Reusable block (YAML anchor): how the app containers reach the database.
+# Inside the Compose network the host is the service name "db", port 5432 -
+# NOT localhost:5433, which only exists on your machine.
+x-database-env: &database-env
+  POSTGRES_HOST: db
+  POSTGRES_PORT: 5432
+  POSTGRES_USER: ${POSTGRES_USER:-dashboard}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dashboard}
+  POSTGRES_DB: ${POSTGRES_DB:-dashboard}
 
+services:
   db:
     image: postgres:17-alpine
     environment:
@@ -25,9 +25,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dashboard}
       POSTGRES_DB: ${POSTGRES_DB:-dashboard}
     ports:
-      # HOST:CONTAINER. Inside the Docker network Postgres is always db:5432;
-      # on your machine it is published on 5433 because 5432 is often taken
-      # by a locally installed PostgreSQL. 127.0.0.1 = not reachable from your network.
+      # HOST:CONTAINER. Published on 5433 because 5432 is often taken by a
+      # locally installed PostgreSQL. 127.0.0.1 = not reachable from your network.
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data  # data survives `docker compose down`
@@ -36,6 +35,32 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # One-off job: bring the schema up to date, then exit.
+  migrate:
+    build: .
+    image: project-dashboard:local
+    command: ["python", "-m", "project_dashboard.db.migrate"]
+    environment:
+      <<: *database-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    image: project-dashboard:local
+    environment:
+      <<: *database-env
+      ENVIRONMENT: local
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        # Never serve requests against an outdated schema.
+        condition: service_completed_successfully
 
 volumes:
   db-data:
