@@ -4,7 +4,28 @@ A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 0 – repository setup.** See the roadmap below.
+> Status: **Phase 1 – project skeleton.** See the roadmap below.
+
+## Getting started
+
+Requirements: [uv](https://docs.astral.sh/uv/) and Docker Desktop.
+
+```bash
+uv sync                      # create .venv and install everything from uv.lock
+uv run tox                   # lint + type-check + tests, exactly like CI
+uv run project-dashboard     # run the API locally with auto-reload
+docker compose up --build    # or: run API + Postgres in containers
+```
+
+Then open <http://localhost:8000/docs>. Copy `.env.example` to `.env` to change settings.
+
+| Command | What it does |
+|---|---|
+| `uv run tox -e lint` | `ruff check` + `ruff format --check` |
+| `uv run tox -e type` | `mypy` in strict mode |
+| `uv run tox -e test` | `pytest` with coverage |
+| `uv run ruff format .` | auto-format the code |
+| `uv build` | build the wheel and sdist into `dist/` |
 
 ## Access model
 
@@ -43,7 +64,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 ## Roadmap
 
 - [x] **Phase 0** – Git repository, GitHub, conventions
-- [ ] **Phase 1** – Skeleton: uv, `pyproject.toml`, tox, settings, Docker Compose (Postgres + MinIO), health check, first CI
+- [x] **Phase 1** – Skeleton: uv, `pyproject.toml`, tox, settings, Dockerfile, Docker Compose (API + Postgres), health check, first CI
 - [ ] **Phase 2** – SQLAlchemy models, Alembic migrations, raw `schema.sql` (without ORM)
 - [ ] **Phase 3** – Auth: register, login, JWT
 - [ ] **Phase 4** – Projects, invites, permissions

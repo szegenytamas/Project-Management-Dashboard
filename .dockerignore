@@ -1,0 +1,21 @@
+# Everything listed here is NOT sent to the Docker build. This keeps builds
+# fast and, more importantly, keeps secrets (.env) out of images.
+.git
+.github
+.venv
+.tox
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+.coverage
+coverage.xml
+htmlcov
+dist
+build
+storage
+tests
+.env
+.env.*
+*.md
+!README.md
