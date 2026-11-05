@@ -49,6 +49,12 @@ build-backend = "uv_build"
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
+# Lint what CI lints. By default ruff skips gitignored paths - a wrong
+# .gitignore pattern once hid src/project_dashboard/storage/ from local lint,
+# and only CI (a clean checkout) noticed. Ruff's own defaults still exclude
+# .venv, .tox, caches and build output; study-notes is local-only material.
+respect-gitignore = false
+extend-exclude = ["study-notes"]
 
 [tool.ruff.lint]
 select = [

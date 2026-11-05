@@ -84,7 +84,9 @@ class S3Storage:
 
     async def put(self, key: str, data: bytes, content_type: str) -> None:
         def put_object() -> None:
-            self._client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+            self._client.put_object(
+                Bucket=self.bucket, Key=key, Body=data, ContentType=content_type
+            )
 
         await self._run(put_object)
 

@@ -15,4 +15,11 @@ def get_storage(request: Request) -> ObjectStorage:
 
 StorageDep = Annotated[ObjectStorage, Depends(get_storage)]
 
-__all__ = ["ObjectStorage", "S3Storage", "StorageDep", "StorageError", "StoredObject", "get_storage"]
+__all__ = [
+    "ObjectStorage",
+    "S3Storage",
+    "StorageDep",
+    "StorageError",
+    "StoredObject",
+    "get_storage",
+]
