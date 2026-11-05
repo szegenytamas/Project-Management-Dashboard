@@ -9,8 +9,11 @@ from project_dashboard.services.errors import (
     ConflictError,
     DomainError,
     NotFoundError,
+    PayloadTooLargeError,
     PermissionDeniedError,
+    UnsupportedMediaTypeError,
 )
+from project_dashboard.storage import StorageError
 
 
 async def validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -37,6 +40,8 @@ _DOMAIN_STATUS: dict[type[DomainError], int] = {
     NotFoundError: status.HTTP_404_NOT_FOUND,
     PermissionDeniedError: status.HTTP_403_FORBIDDEN,
     ConflictError: status.HTTP_409_CONFLICT,
+    PayloadTooLargeError: status.HTTP_413_CONTENT_TOO_LARGE,
+    UnsupportedMediaTypeError: status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
 }
 
 
@@ -51,6 +56,18 @@ async def domain_error_handler(request: Request, exc: Exception) -> JSONResponse
     return JSONResponse(status_code=code, content={"detail": exc.detail})
 
 
+async def storage_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """S3 unreachable -> 503: a temporary server-side problem, the client may retry.
+
+    The technical details were already logged; the client gets no internals.
+    """
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Document storage is temporarily unavailable"},
+    )
+
+
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(DomainError, domain_error_handler)
+    app.add_exception_handler(StorageError, storage_error_handler)

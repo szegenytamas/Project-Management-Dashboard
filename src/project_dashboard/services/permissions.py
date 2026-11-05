@@ -15,8 +15,12 @@ from enum import StrEnum
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from project_dashboard.db.models import Project, ProjectMember, ProjectRole
-from project_dashboard.services.errors import PermissionDeniedError, ProjectNotFoundError
+from project_dashboard.db.models import Document, Project, ProjectMember, ProjectRole
+from project_dashboard.services.errors import (
+    DocumentNotFoundError,
+    PermissionDeniedError,
+    ProjectNotFoundError,
+)
 
 
 class Action(StrEnum):
@@ -67,3 +71,33 @@ async def get_project_access(
     if not is_allowed(role, action):
         raise PermissionDeniedError(f"Only the project owner can {action.value}")
     return ProjectAccess(project=project, role=role)
+
+
+@dataclass(frozen=True)
+class DocumentAccess:
+    document: Document
+    project_id: int
+    role: ProjectRole
+
+
+async def get_document_access(
+    session: AsyncSession, document_id: int, user_id: int, action: Action
+) -> DocumentAccess:
+    """The same rules for a document: access is decided by its project's membership.
+
+    A document that does not exist and a document in someone else's project
+    give the identical 404, so document IDs cannot be probed either.
+    """
+    row = (
+        await session.execute(
+            select(Document, ProjectMember.role)
+            .join(ProjectMember, ProjectMember.project_id == Document.project_id)
+            .where(Document.id == document_id, ProjectMember.user_id == user_id)
+        )
+    ).one_or_none()
+    if row is None:
+        raise DocumentNotFoundError()
+    document, role = row
+    if not is_allowed(role, action):
+        raise PermissionDeniedError(f"Only the project owner can {action.value}")
+    return DocumentAccess(document=document, project_id=document.project_id, role=role)

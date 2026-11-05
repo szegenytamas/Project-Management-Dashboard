@@ -26,6 +26,35 @@ class ConflictError(DomainError):
     """-> 409. The request clashes with the current state (e.g. a duplicate)."""
 
 
+class PayloadTooLargeError(DomainError):
+    """-> 413. A file, an upload or a project's total size exceeds a limit."""
+
+
+class UnsupportedMediaTypeError(DomainError):
+    """-> 415. The file is not one of the accepted document types."""
+
+
+class FileTooLargeError(PayloadTooLargeError):
+    pass
+
+
+class TooManyFilesError(PayloadTooLargeError):
+    pass
+
+
+class ProjectSizeLimitError(PayloadTooLargeError):
+    pass
+
+
+class UnsupportedFileTypeError(UnsupportedMediaTypeError):
+    pass
+
+
+class DocumentNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("Document not found")
+
+
 class ProjectNotFoundError(NotFoundError):
     def __init__(self) -> None:
         super().__init__("Project not found")

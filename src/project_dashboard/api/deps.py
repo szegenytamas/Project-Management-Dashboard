@@ -20,12 +20,19 @@ from project_dashboard.core.config import Settings, get_settings
 from project_dashboard.core.security import InvalidTokenError, decode_access_token
 from project_dashboard.db.models import User
 from project_dashboard.db.session import SessionDep
-from project_dashboard.services.permissions import Action, ProjectAccess, get_project_access
+from project_dashboard.services.permissions import (
+    Action,
+    DocumentAccess,
+    ProjectAccess,
+    get_document_access,
+    get_project_access,
+)
 
 # IDs are BIGINT in PostgreSQL. Without the upper bound, /project/99999999999999999999
 # would pass validation and crash the database driver (500 instead of 422).
 MAX_DB_ID = 2**63 - 1
 ProjectId = Annotated[int, Path(gt=0, le=MAX_DB_ID, description="Project id")]
+DocumentId = Annotated[int, Path(gt=0, le=MAX_DB_ID, description="Document id")]
 
 # Reads "Authorization: Bearer <token>" and adds the "Authorize" button to
 # Swagger UI. auto_error=False: we raise our own, consistent 401 below.
@@ -74,5 +81,16 @@ def require_project_access(action: Action) -> Callable[..., Awaitable[ProjectAcc
         project_id: ProjectId, user: CurrentUser, session: SessionDep
     ) -> ProjectAccess:
         return await get_project_access(session, project_id, user.id, action)
+
+    return dependency
+
+
+def require_document_access(action: Action) -> Callable[..., Awaitable[DocumentAccess]]:
+    """The same chain for `/document/{document_id}`: the document's project decides."""
+
+    async def dependency(
+        document_id: DocumentId, user: CurrentUser, session: SessionDep
+    ) -> DocumentAccess:
+        return await get_document_access(session, document_id, user.id, action)
 
     return dependency
