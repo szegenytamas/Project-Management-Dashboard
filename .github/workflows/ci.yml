@@ -124,21 +124,30 @@ jobs:
             python -m project_dashboard.db.migrate
           docker run -d --name api --network host $APP_ENV project-dashboard:ci
 
+          # Poll quietly until uvicorn answers (it needs a moment to start).
           ready=""
           for i in $(seq 1 20); do
-            if curl -fsS http://localhost:8000/health/ready; then echo; ready=1; break; fi
+            if curl -fs http://localhost:8000/health/ready >/dev/null 2>&1; then ready=1; break; fi
             sleep 1
           done
           if [ -z "$ready" ]; then echo "API did not become ready"; docker logs api; exit 1; fi
+          curl -sS http://localhost:8000/health/ready; echo
 
-          # Register -> log in -> create a project with the token -> list it
-          pw='Smoke-Test-Pw-42!'
-          curl -fsS -X POST http://localhost:8000/auth -H 'Content-Type: application/json' \
-            -d "{\"login\":\"smoke\",\"password\":\"$pw\",\"repeat_password\":\"$pw\"}"; echo
-          token=$(curl -fsS -X POST http://localhost:8000/login -H 'Content-Type: application/json' \
-            -d "{\"login\":\"smoke\",\"password\":\"$pw\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+          # --fail-with-body: on a 4xx/5xx, still print the response (e.g. the
+          # 422 reason) before failing the step.
+          api() { curl -sS --fail-with-body "$@"; }
+
+          # Register -> log in -> create a project with the token -> list it.
+          # The password must satisfy the policy, including "must not contain
+          # the login" - so it deliberately does not contain "smoke".
+          login='smoke'
+          pw='Ci-Check-Pass-42!'
+          api -X POST http://localhost:8000/auth -H 'Content-Type: application/json' \
+            -d "{\"login\":\"$login\",\"password\":\"$pw\",\"repeat_password\":\"$pw\"}"; echo
+          token=$(api -X POST http://localhost:8000/login -H 'Content-Type: application/json' \
+            -d "{\"login\":\"$login\",\"password\":\"$pw\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
           echo "register + login OK"
-          curl -fsS -X POST http://localhost:8000/projects -H "Authorization: Bearer $token" \
+          api -X POST http://localhost:8000/projects -H "Authorization: Bearer $token" \
             -H 'Content-Type: application/json' -d '{"name":"Smoke project","description":"from CI"}'; echo
-          curl -fsS http://localhost:8000/projects -H "Authorization: Bearer $token" | grep -q '"Smoke project"'
+          api http://localhost:8000/projects -H "Authorization: Bearer $token" | grep -q '"Smoke project"'
           echo "create + list project OK"
