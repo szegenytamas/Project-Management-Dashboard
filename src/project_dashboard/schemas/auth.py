@@ -28,20 +28,55 @@ Login = Annotated[
     ),
     AfterValidator(_normalize_login),
 ]
-# Length limits: 8 is the usual minimum; the maximum stops someone from
-# sending megabytes of "password" to make the slow hash function burn CPU.
-Password = Annotated[str, Field(min_length=8, max_length=128, examples=["correct-horse-42"])]
+
+
+def _check_password_strength(value: str) -> str:
+    """Require all four character classes; report every missing one at once."""
+    missing = [
+        name
+        for name, present in (
+            ("an uppercase letter", any(c.isupper() for c in value)),
+            ("a lowercase letter", any(c.islower() for c in value)),
+            ("a digit", any(c.isdigit() for c in value)),
+            ("a special character", any(not c.isalnum() and not c.isspace() for c in value)),
+        )
+        if not present
+    ]
+    if missing:
+        raise ValueError("Password must contain " + ", ".join(missing))
+    return value
+
+
+# Policy: at least 12 characters with upper, lower, digit and special
+# character. The maximum stops someone from sending megabytes of "password"
+# to make the slow hash function burn CPU (denial of service).
+Password = Annotated[
+    str,
+    Field(
+        min_length=12,
+        max_length=128,
+        description="12-128 characters with an uppercase and lowercase letter, a digit and a "
+        "special character. Must not contain the login.",
+        examples=["Correct-Horse-42!"],
+    ),
+    AfterValidator(_check_password_strength),
+]
 
 
 class RegisterRequest(BaseModel):
     login: Login
     password: Password
-    repeat_password: str = Field(examples=["correct-horse-42"])
+    repeat_password: str = Field(examples=["Correct-Horse-42!"])
 
     @model_validator(mode="after")
-    def passwords_match(self) -> Self:
+    def check_passwords(self) -> Self:
         if self.password != self.repeat_password:
             raise ValueError("Passwords do not match")
+        # The login is public (it appears in invitations), so a password built
+        # from it is the first thing an attacker tries. Case-insensitive, so
+        # "Alice-2024!" is rejected for the login "alice".
+        if self.login in self.password.lower():
+            raise ValueError("Password must not contain the login")
         return self
 
 

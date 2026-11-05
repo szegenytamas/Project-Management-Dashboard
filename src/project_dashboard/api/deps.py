@@ -10,15 +10,22 @@ FastAPI then runs `get_current_user` before the endpoint. If the request has
 no valid token, the endpoint never runs and the client gets 401.
 """
 
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from project_dashboard.core.config import Settings, get_settings
 from project_dashboard.core.security import InvalidTokenError, decode_access_token
 from project_dashboard.db.models import User
 from project_dashboard.db.session import SessionDep
+from project_dashboard.services.permissions import Action, ProjectAccess, get_project_access
+
+# IDs are BIGINT in PostgreSQL. Without the upper bound, /project/99999999999999999999
+# would pass validation and crash the database driver (500 instead of 422).
+MAX_DB_ID = 2**63 - 1
+ProjectId = Annotated[int, Path(gt=0, le=MAX_DB_ID, description="Project id")]
 
 # Reads "Authorization: Bearer <token>" and adds the "Authorize" button to
 # Swagger UI. auto_error=False: we raise our own, consistent 401 below.
@@ -51,3 +58,21 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def require_project_access(action: Action) -> Callable[..., Awaitable[ProjectAccess]]:
+    """Build a dependency that grants access to `/project/{project_id}/...` for one action.
+
+    Usage in a route:
+        access: Annotated[ProjectAccess, Depends(require_project_access(Action.DELETE))]
+
+    The chain is: valid token (CurrentUser) -> membership -> role allows action.
+    The endpoint only runs if all three pass.
+    """
+
+    async def dependency(
+        project_id: ProjectId, user: CurrentUser, session: SessionDep
+    ) -> ProjectAccess:
+        return await get_project_access(session, project_id, user.id, action)
+
+    return dependency

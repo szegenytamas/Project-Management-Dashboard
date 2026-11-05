@@ -4,7 +4,7 @@ A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 3 – authentication.** See the roadmap below.
+> Status: **Phase 4 – projects, invitations, permissions.** See the roadmap below.
 
 ## Getting started
 
@@ -33,6 +33,9 @@ runs the migrations, then starts the API. Open <http://localhost:8000/docs>.
 | `uv run alembic upgrade head` / `downgrade -1` | apply / undo migrations |
 | `python -m project_dashboard.db.migrate` | apply migrations without `alembic.ini` (containers, servers) |
 
+To click through the API, open [`requests.http`](requests.http) in VS Code (REST Client
+extension) or a JetBrains IDE: register, log in, then every request reuses the token.
+
 ## Database
 
 | Table | Purpose |
@@ -54,18 +57,28 @@ The schema exists twice: as ORM models + Alembic migrations
 | **Participant** | The owner invited you | View and edit the project, upload and update documents. **Cannot delete** anything or invite others |
 
 Every business endpoint requires a JWT issued by `POST /login` (valid for 1 hour).
-Permissions are resolved from the database on every request.
+Permissions are resolved from the database on every request, by one function
+(`services/permissions.py`) that every endpoint uses:
+
+| Action | Owner | Participant | Not a member |
+|---|---|---|---|
+| View info, list documents, download | ✅ | ✅ | 404 |
+| Update info, upload / replace documents | ✅ | ✅ | 404 |
+| Delete documents, invite users, delete the project | ✅ | 403 | 404 |
+
+Non-members get **404, not 403**, so they cannot tell someone else's project
+from a project that does not exist.
 
 ### Authentication
 
 ```bash
-# 1. Register (login: 3-64 chars, letters/digits/_ . -, case-insensitive; password: 8-128 chars)
+# 1. Register
 curl -X POST localhost:8000/auth -H "Content-Type: application/json" \
-     -d '{"login": "alice", "password": "correct-horse-42", "repeat_password": "correct-horse-42"}'
+     -d '{"login": "alice", "password": "Correct-Horse-42!", "repeat_password": "Correct-Horse-42!"}'
 
 # 2. Log in -> {"access_token": "...", "token_type": "bearer", "expires_in": 3600}
 curl -X POST localhost:8000/login -H "Content-Type: application/json" \
-     -d '{"login": "alice", "password": "correct-horse-42"}'
+     -d '{"login": "alice", "password": "Correct-Horse-42!"}'
 
 # 3. Send the token with every other request
 curl localhost:8000/projects -H "Authorization: Bearer <access_token>"
@@ -73,6 +86,9 @@ curl localhost:8000/projects -H "Authorization: Bearer <access_token>"
 
 In Swagger UI (`/docs`) click **Authorize** and paste the `access_token`.
 
+- **Login:** 3–64 characters (letters, digits, `_` `.` `-`), case-insensitive.
+- **Password policy:** 12–128 characters with an uppercase letter, a lowercase letter, a
+  digit and a special character; it must not contain the login (case-insensitive).
 - Passwords are stored only as salted **argon2id** hashes.
 - Tokens are HS256-signed JWTs (`sub` = user id, `iat`, `exp` = +60 min). The signing key
   `JWT_SECRET_KEY` (≥ 32 characters) must come from the environment.
@@ -109,17 +125,24 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [x] **Phase 1** – Skeleton: uv, `pyproject.toml`, tox, settings, Dockerfile, Docker Compose (API + Postgres), health check, first CI
 - [x] **Phase 2** – SQLAlchemy models, Alembic migrations, raw `schema.sql` (without ORM)
 - [x] **Phase 3** – Auth: register, login, JWT
-- [ ] **Phase 4** – Projects, invites, permissions
-- [ ] **Phase 5** – Documents, S3 storage, file validation, project size limit
-- [ ] **Phase 6** – Full CI: lint, type-check, tests, build, push to ECR
-- [ ] **Phase 7** – AWS: RDS, S3, EC2, Lambda (size calculation), CD on merge
-- [ ] **Phase 8** – *Optional:* share link via email (SES), image resize
-- [ ] **Phase 9** – *Optional:* web UI – static HTML/JS client of the JSON API
-  (login, project list, project details & documents, invite, share-link landing page)
+- [x] **Phase 4** – Projects, invites, owner/participant permissions, stronger password policy
+- [ ] **Phase 5** – Documents in S3: upload (PDF/DOCX), download, replace, delete, size limit
+- [ ] **Phase 6** – CI pushes the image to a registry (GHCR); `docs/`: architecture, data model
+  rationale, ORM vs. raw SQL, design decisions
+- [ ] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
+  deployment on EC2, evidence (screenshots / logs)
+- [ ] **Phase 8** – Extensions: seed data, documented AI-assisted workflow, continuous deployment,
+  security hardening
+- [ ] **Phase 9** – *Optional:* web UI, share link via email
 
 ## Development workflow
 
-- `main` is always deployable; it only changes through pull requests.
-- One branch and one pull request per phase/feature, e.g. `feat/auth`.
+- `main` is always deployable; it only changes through pull requests that pass CI
+  (enforced by a branch ruleset).
+- One branch per phase/feature, with several small commits that each leave the project
+  working. PRs are merged with **"Create a merge commit"**, so every step stays in the history.
+  (Phases 1–3 were squash-merged: one commit per phase.)
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
   `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `ci:`, `refactor:`.
+- AI assistance (Claude Code) is used under the conventions in [`CLAUDE.md`](CLAUDE.md);
+  how it was used is documented in [`docs/ai-workflow.md`](docs/ai-workflow.md).
