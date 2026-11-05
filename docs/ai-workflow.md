@@ -51,5 +51,5 @@ changed, and why. The conventions the AI works under are in [`CLAUDE.md`](../CLA
 ## Phase 4 – Projects, invitations, permissions
 
 - **Delegated:**
-- **Reviewed / verified myself:**
+- **Reviewed / verified myself:** I caught a failing smoke test in CI and brought it back, and the fix included making the next failure easier to diagnose
 - **Decided or changed:**

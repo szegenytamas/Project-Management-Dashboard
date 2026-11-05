@@ -4,23 +4,27 @@ A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 4 – projects, invitations, permissions.** See the roadmap below.
+> Status: **Phase 5 – documents in S3.** See the roadmap below.
 
 ## Getting started
 
 Requirements: [uv](https://docs.astral.sh/uv/) and Docker Desktop.
 
 ```bash
-cp .env.example .env         # local settings (DB on localhost:5433)
+cp .env.example .env         # local settings (DB on localhost:5433, S3 emulator on :5000)
 uv sync                      # create .venv and install everything from uv.lock
-docker compose up -d db      # start PostgreSQL
+docker compose up -d db s3   # start PostgreSQL and the S3 emulator
 uv run alembic upgrade head  # create / update the tables
 uv run tox                   # lint + type-check + tests, exactly like CI
 uv run project-dashboard     # run the API locally with auto-reload
 ```
 
-Or run everything in containers: `docker compose up --build` starts Postgres,
-runs the migrations, then starts the API. Open <http://localhost:8000/docs>.
+Or run everything in containers: `docker compose up --build` starts Postgres and
+the S3 emulator, runs the migrations, then starts the API. Open <http://localhost:8000/docs>.
+
+Locally, S3 is emulated by [moto](https://github.com/getmoto/moto) (`motoserver/moto`):
+the same S3 API as AWS, no account needed. Its files live in memory and are gone after
+`docker compose down`. The tests use moto in-process, so they need no container for S3.
 
 | Command | What it does |
 |---|---|
@@ -44,6 +48,20 @@ extension) or a JetBrains IDE: register, log in, then every request reuses the t
 | `projects` | `name`, `description`, `total_size_bytes` (deliberately denormalized sum of document sizes) |
 | `project_members` | Who may access which project, with role `owner` / `participant`; at most one owner per project |
 | `documents` | File metadata (`filename`, `content_type`, `size_bytes`); the bytes live in S3 under `storage_key` |
+
+## Documents
+
+| Rule | Value |
+|---|---|
+| Accepted types | PDF and DOCX, detected from the file **content** (magic bytes); the extension must match |
+| Max file size | 10 MB (`MAX_FILE_SIZE_BYTES`) |
+| Max project size | 50 MB total (`PROJECT_SIZE_LIMIT_BYTES`), checked with the project row locked |
+| Files per upload | 10; one invalid file rejects the whole upload |
+| Storage | S3 key `projects/{project_id}/{random}.pdf`; the original name is kept as metadata |
+
+Upload / replace store the file in S3 **before** committing the database row (and delete it
+again if the commit fails); delete removes the row **before** the file. A database row
+therefore never points to a missing file.
 
 The schema exists twice: as ORM models + Alembic migrations
 (`src/project_dashboard/db/`) and as plain SQL without an ORM
@@ -117,7 +135,8 @@ In Swagger UI (`/docs`) click **Authorize** and paste the `access_token`.
 
 All responses are JSON except file downloads. Errors: `401` not authenticated,
 `403` role not allowed, `404` not found **or no access** (existence is not leaked),
-`409` conflict, `413` size limit exceeded, `415` unsupported file type, `422` validation error.
+`409` conflict, `413` size limit exceeded, `415` unsupported file type, `422` validation error,
+`503` document storage temporarily unavailable.
 
 ## Roadmap
 
@@ -126,7 +145,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [x] **Phase 2** – SQLAlchemy models, Alembic migrations, raw `schema.sql` (without ORM)
 - [x] **Phase 3** – Auth: register, login, JWT
 - [x] **Phase 4** – Projects, invites, owner/participant permissions, stronger password policy
-- [ ] **Phase 5** – Documents in S3: upload (PDF/DOCX), download, replace, delete, size limit
+- [x] **Phase 5** – Documents in S3: upload (PDF/DOCX), download, replace, delete, size limit
 - [ ] **Phase 6** – CI pushes the image to a registry (GHCR); `docs/`: architecture, data model
   rationale, ORM vs. raw SQL, design decisions
 - [ ] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,

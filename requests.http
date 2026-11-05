@@ -65,6 +65,45 @@ Content-Type: application/json
 
 {"name": "Apollo 11", "description": "First crewed Moon landing"}
 
+### bob uploads a document (participants may upload) -> 201
+# @name upload
+POST {{base}}/project/{{project.response.body.id}}/documents
+Authorization: Bearer {{bob.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=BOUNDARY
+
+--BOUNDARY
+Content-Disposition: form-data; name="files"; filename="plan.pdf"
+Content-Type: application/pdf
+
+%PDF-1.7
+A tiny test document
+%%EOF
+--BOUNDARY--
+
+### List the project's documents
+GET {{base}}/project/{{project.response.body.id}}/documents
+Authorization: Bearer {{alice.response.body.access_token}}
+
+### Download it (the only non-JSON response)
+GET {{base}}/document/{{upload.response.body.$[0].id}}
+Authorization: Bearer {{alice.response.body.access_token}}
+
+### A text file pretending to be a PDF -> 415
+POST {{base}}/project/{{project.response.body.id}}/documents
+Authorization: Bearer {{alice.response.body.access_token}}
+Content-Type: multipart/form-data; boundary=BOUNDARY
+
+--BOUNDARY
+Content-Disposition: form-data; name="files"; filename="fake.pdf"
+Content-Type: application/pdf
+
+this is not a pdf
+--BOUNDARY--
+
+### bob tries to delete the document -> 403
+DELETE {{base}}/document/{{upload.response.body.$[0].id}}
+Authorization: Bearer {{bob.response.body.access_token}}
+
 ### bob tries to delete -> 403 (participants cannot delete)
 DELETE {{base}}/project/{{project.response.body.id}}
 Authorization: Bearer {{bob.response.body.access_token}}

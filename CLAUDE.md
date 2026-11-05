@@ -28,6 +28,8 @@ src/project_dashboard/
   schemas/      Pydantic models (input validation, output whitelists)
   services/     business logic; raises errors from services/errors.py, never HTTPException
   services/permissions.py   THE permission matrix - the only place roles are compared
+  services/files.py         file type detection (magic bytes) and size checks
+  storage/      S3 client (boto3 in a thread pool); moto in tests and Docker Compose
   core/         config, security (hashing, JWT), error handlers
   db/           models, session, migrations/, schema.sql (same schema without ORM)
 tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction per test
@@ -48,6 +50,9 @@ tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction
   `run_in_threadpool`.
 - **Use the database as the judge** for uniqueness (catch `IntegrityError`), not check-then-insert.
 - Relationships are `lazy="raise"`: load them explicitly (`selectinload`), never rely on lazy loading.
+- **S3 + database ordering**: upload/replace = S3 first, then commit (delete the object if the
+  commit fails); delete = commit first, then S3. boto3 calls go through `run_in_threadpool`.
+  Never trust a client's file name or Content-Type: the type comes from `services/files.py`.
 - Tests assert behaviour (state in the database), not just status codes. Authorization changes
   need a row in `tests/test_authorization.py`.
 - Before handing over: `uv run tox` must pass (lint, type, test) with no warnings.
@@ -55,7 +60,7 @@ tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction
 ## Commands
 
 ```bash
-docker compose up -d db          # PostgreSQL on localhost:5433
+docker compose up -d db s3       # PostgreSQL on localhost:5433, S3 emulator on :5000
 uv run tox                       # everything CI runs
 uv run alembic revision --autogenerate -m "..."
 docker compose up --build        # full stack: db -> migrate -> api on :8000
@@ -63,5 +68,7 @@ docker compose up --build        # full stack: db -> migrate -> api on :8000
 
 ## Current state
 
-Phases 0–4 done (skeleton, database, authentication, projects + invites + permissions).
-Next: Phase 5 – documents in S3. See the roadmap in `README.md`.
+Phases 0–5 done (skeleton, database, authentication, projects + invites + permissions,
+documents in S3). Next: Phase 6 – CI pushes the image to GHCR, plus `docs/`
+(architecture, database rationale, ORM vs raw SQL, decisions, REST conformance).
+See the roadmap in `README.md`.
