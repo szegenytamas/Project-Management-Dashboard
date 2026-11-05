@@ -16,6 +16,8 @@ dependencies = [
     "alembic>=1.20.1",
     "pwdlib[argon2]>=0.3.1",
     "pyjwt>=2.15.1",
+    "boto3>=1.43.124",
+    "python-multipart>=0.0.33",
 ]
 
 [project.scripts]
@@ -27,6 +29,7 @@ project-dashboard = "project_dashboard.__main__:main"
 [dependency-groups]
 dev = [
     "httpx>=0.28",
+    "moto[s3]>=5.2.5",
     "mypy>=1.18",
     "pytest>=8.4",
     "pytest-asyncio>=1.2",
@@ -34,6 +37,7 @@ dev = [
     "ruff>=0.14",
     "tox>=4.30",
     "tox-uv>=1.28",
+    "types-boto3[s3]>=1.43.124",
 ]
 
 [build-system]
