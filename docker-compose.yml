@@ -1,8 +1,9 @@
 # Local development stack: `docker compose up --build`
 #   API:      http://localhost:8000/docs
 #   Postgres: localhost:5433
+#   S3:       localhost:5000 (moto emulator; files are kept in memory only)
 #
-# Start order:  db (healthy)  ->  migrate (runs, exits 0)  ->  api
+# Start order:  db (healthy) -> migrate (runs, exits 0) -> api   (and s3 (healthy) -> api)
 #
 # Values like ${POSTGRES_PASSWORD:-dashboard} read from your shell or `.env`,
 # falling back to the default after `:-`. Defaults are for local use only.
@@ -18,8 +19,25 @@ x-app-env: &app-env
   POSTGRES_DB: ${POSTGRES_DB:-dashboard}
   # ":?" = no default; Compose refuses to start if it is not set in .env.
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env (see .env.example)}
+  # Local S3 emulator; dummy credentials (moto accepts any). In AWS none of
+  # these are set: the real endpoint and the instance's IAM role are used.
+  S3_ENDPOINT_URL: http://s3:5000
+  S3_CREATE_BUCKET: "true"
+  AWS_ACCESS_KEY_ID: local-dev
+  AWS_SECRET_ACCESS_KEY: local-dev
 
 services:
+  # S3-compatible emulator (moto). Same S3 API as AWS, no account needed.
+  s3:
+    image: motoserver/moto:5.2.4
+    ports:
+      - "127.0.0.1:${S3_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/moto-api/')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   db:
     image: postgres:17-alpine
     environment:
@@ -63,6 +81,8 @@ services:
       migrate:
         # Never serve requests against an outdated schema.
         condition: service_completed_successfully
+      s3:
+        condition: service_healthy  # the bucket is created at API startup
 
 volumes:
   db-data:
