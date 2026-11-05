@@ -14,7 +14,7 @@ from project_dashboard.core.config import Settings
 from project_dashboard.core.security import create_access_token
 from project_dashboard.db.models import User
 
-PASSWORD = "correct-horse-42"
+PASSWORD = "Correct-Horse-42!"
 
 
 async def register(client: AsyncClient, login: str = "alice", password: str = PASSWORD) -> Response:
@@ -72,8 +72,8 @@ async def test_register_passwords_must_match(client: AsyncClient) -> None:
         ("al", PASSWORD),  # login too short
         ("a" * 65, PASSWORD),  # login too long
         ("alice smith", PASSWORD),  # space not allowed
-        ("alice", "short"),  # password too short
-        ("alice", "x" * 129),  # password too long
+        ("alice", "Sh0rt!pass"),  # password: 10 characters
+        ("alice", "Aa1!" + "x" * 125),  # password: 129 characters
     ],
 )
 async def test_register_rejects_invalid_input(
@@ -84,11 +84,44 @@ async def test_register_rejects_invalid_input(
     assert response.status_code == 422
 
 
-async def test_validation_errors_do_not_echo_the_password(client: AsyncClient) -> None:
-    response = await register(client, "alice", "secret7")  # 7 chars: too short
+@pytest.mark.parametrize(
+    ("password", "missing"),
+    [
+        ("correct-horse-42!", "an uppercase letter"),
+        ("CORRECT-HORSE-42!", "a lowercase letter"),
+        ("Correct-Horse-XX!", "a digit"),
+        ("CorrectHorse4242", "a special character"),
+        ("correcthorsebattery", "an uppercase letter, a digit, a special character"),
+    ],
+)
+async def test_password_must_contain_all_character_classes(
+    client: AsyncClient, password: str, missing: str
+) -> None:
+    response = await register(client, "alice", password)
 
     assert response.status_code == 422
-    assert "secret7" not in response.text
+    assert f"Password must contain {missing}" in response.text
+
+
+@pytest.mark.parametrize("password", ["Alice-Smith-1!x", "XX-alice-2024!", "ALICE#password1"])
+async def test_password_must_not_contain_the_login(client: AsyncClient, password: str) -> None:
+    response = await register(client, "alice", password)
+
+    assert response.status_code == 422
+    assert "Password must not contain the login" in response.text
+
+
+async def test_strong_password_is_accepted(client: AsyncClient) -> None:
+    response = await register(client, "alice", "Tr0ub4dor&3-horse")
+
+    assert response.status_code == 201
+
+
+async def test_validation_errors_do_not_echo_the_password(client: AsyncClient) -> None:
+    response = await register(client, "alice", "Secret7!")  # 8 chars: too short
+
+    assert response.status_code == 422
+    assert "Secret7!" not in response.text
     error = response.json()["detail"][0]
     assert error["loc"] == ["body", "password"]
     assert error["type"] == "string_too_short"
