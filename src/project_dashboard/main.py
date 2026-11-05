@@ -16,10 +16,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from project_dashboard import __version__
-from project_dashboard.api.routes import auth, health, projects
+from project_dashboard.api.routes import auth, documents, health, projects
 from project_dashboard.core.config import Settings, get_settings
 from project_dashboard.core.errors import register_error_handlers
 from project_dashboard.db.session import create_engine, create_sessionmaker
+from project_dashboard.storage import S3Storage
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_engine(settings)
     app.state.engine = engine
     app.state.sessionmaker = create_sessionmaker(engine)
+    # One S3 client per process (boto3 clients are thread-safe and reusable).
+    storage = S3Storage(settings)
+    if settings.s3_create_bucket:  # local emulator only; in AWS the bucket is provisioned
+        await storage.ensure_bucket()
+    app.state.storage = storage
     logger.info("Starting %s v%s", app.title, __version__)
     yield
     # Shutdown: close all pooled connections cleanly.
@@ -54,4 +60,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(projects.router)
+    app.include_router(documents.router)
     return app

@@ -20,8 +20,9 @@ from project_dashboard.schemas.projects import (
     ProjectRead,
     ProjectUpdate,
 )
-from project_dashboard.services import projects
+from project_dashboard.services import documents, projects
 from project_dashboard.services.permissions import Action, ProjectAccess
+from project_dashboard.storage import StorageDep
 
 _401: dict[int | str, dict[str, Any]] = {
     status.HTTP_401_UNAUTHORIZED: {"description": "Missing, invalid or expired token"}
@@ -90,10 +91,12 @@ async def update_project_info(
 async def delete_project(
     access: Annotated[ProjectAccess, Depends(require_project_access(Action.DELETE))],
     session: SessionDep,
+    storage: StorageDep,
 ) -> Response:
-    """Delete the project with its memberships and documents (owner only)."""
-    await projects.delete_project(session, access.project)
-    # Phase 5: the returned S3 keys are deleted from the bucket here.
+    """Delete the project with its memberships, documents and their files in S3 (owner only)."""
+    keys = await projects.delete_project(session, access.project)
+    # Rows are committed away first; only then the files (see services/documents.py).
+    await documents.delete_files(storage, keys)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

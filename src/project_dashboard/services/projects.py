@@ -63,7 +63,7 @@ async def delete_project(session: AsyncSession, project: Project) -> list[str]:
 
     One DELETE statement: PostgreSQL's ON DELETE CASCADE removes the
     memberships and document rows. The keys are read first because the rows
-    are gone afterwards. (Deleting the S3 objects arrives in Phase 5.)
+    are gone afterwards; the route deletes the S3 objects after this commit.
     """
     keys = list(
         await session.scalars(select(Document.storage_key).where(Document.project_id == project.id))
