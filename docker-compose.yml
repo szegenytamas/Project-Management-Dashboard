@@ -7,15 +7,17 @@
 # Values like ${POSTGRES_PASSWORD:-dashboard} read from your shell or `.env`,
 # falling back to the default after `:-`. Defaults are for local use only.
 
-# Reusable block (YAML anchor): how the app containers reach the database.
-# Inside the Compose network the host is the service name "db", port 5432 -
+# Reusable block (YAML anchor): settings shared by the app containers.
+# Inside the Compose network the DB host is the service name "db", port 5432 -
 # NOT localhost:5433, which only exists on your machine.
-x-database-env: &database-env
+x-app-env: &app-env
   POSTGRES_HOST: db
   POSTGRES_PORT: 5432
   POSTGRES_USER: ${POSTGRES_USER:-dashboard}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dashboard}
   POSTGRES_DB: ${POSTGRES_DB:-dashboard}
+  # ":?" = no default; Compose refuses to start if it is not set in .env.
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env (see .env.example)}
 
 services:
   db:
@@ -42,7 +44,7 @@ services:
     image: project-dashboard:local
     command: ["python", "-m", "project_dashboard.db.migrate"]
     environment:
-      <<: *database-env
+      <<: *app-env
     depends_on:
       db:
         condition: service_healthy
@@ -52,7 +54,7 @@ services:
     build: .
     image: project-dashboard:local
     environment:
-      <<: *database-env
+      <<: *app-env
       ENVIRONMENT: local
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:

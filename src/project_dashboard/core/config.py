@@ -8,7 +8,7 @@ Pydantic validates and converts them once at startup, so a typo such as
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     postgres_db: str = "dashboard"
     db_pool_size: int = 5
     db_echo: bool = False  # True prints every SQL statement - handy for learning
+
+    # --- Authentication -------------------------------------------------
+    # The key that signs every JWT. Whoever knows it can forge tokens for any
+    # user, so: no default, at least 32 characters, never committed.
+    # Generate one with:  python -c "import secrets; print(secrets.token_hex(32))"
+    jwt_secret_key: SecretStr = Field(min_length=32)
+    jwt_algorithm: Literal["HS256"] = "HS256"
+    jwt_expire_minutes: int = Field(default=60, gt=0)  # the brief: tokens last 1 hour
 
     @property
     def database_url(self) -> URL:

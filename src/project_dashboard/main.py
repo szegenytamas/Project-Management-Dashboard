@@ -16,8 +16,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from project_dashboard import __version__
-from project_dashboard.api.routes import health
+from project_dashboard.api.routes import auth, health
 from project_dashboard.core.config import Settings, get_settings
+from project_dashboard.core.errors import register_error_handlers
 from project_dashboard.db.session import create_engine, create_sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -49,5 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,  # Swagger UI at /docs is enough
     )
     app.state.settings = settings
+    register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(auth.router)
     return app

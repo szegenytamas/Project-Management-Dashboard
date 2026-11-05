@@ -117,12 +117,23 @@ jobs:
       # --network host: the container reaches the Postgres service on localhost.
       - name: Smoke test the image
         run: |
-          DB_ENV="-e POSTGRES_HOST -e POSTGRES_PORT -e POSTGRES_USER -e POSTGRES_PASSWORD -e POSTGRES_DB"
-          docker run --rm --network host $DB_ENV project-dashboard:ci \
+          # A fresh random signing key for this run only - never a fixed value.
+          export JWT_SECRET_KEY="$(openssl rand -hex 32)"
+          APP_ENV="-e POSTGRES_HOST -e POSTGRES_PORT -e POSTGRES_USER -e POSTGRES_PASSWORD -e POSTGRES_DB -e JWT_SECRET_KEY"
+          docker run --rm --network host $APP_ENV project-dashboard:ci \
             python -m project_dashboard.db.migrate
-          docker run -d --name api --network host $DB_ENV project-dashboard:ci
+          docker run -d --name api --network host $APP_ENV project-dashboard:ci
+
+          ready=""
           for i in $(seq 1 20); do
-            if curl -fsS http://localhost:8000/health/ready; then echo; exit 0; fi
+            if curl -fsS http://localhost:8000/health/ready; then echo; ready=1; break; fi
             sleep 1
           done
-          echo "API did not become ready"; docker logs api; exit 1
+          if [ -z "$ready" ]; then echo "API did not become ready"; docker logs api; exit 1; fi
+
+          # Register -> log in -> got a token?
+          creds='{"login":"smoke","password":"smoke-test-pw","repeat_password":"smoke-test-pw"}'
+          curl -fsS -X POST http://localhost:8000/auth -H 'Content-Type: application/json' -d "$creds"; echo
+          curl -fsS -X POST http://localhost:8000/login -H 'Content-Type: application/json' \
+            -d '{"login":"smoke","password":"smoke-test-pw"}' | grep -q '"access_token"'
+          echo "register + login OK"
