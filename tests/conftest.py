@@ -23,6 +23,7 @@ import pytest
 from alembic import command
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
@@ -37,9 +38,13 @@ def asyncpg_dsn(url: URL) -> str:
     return url.set(drivername="postgresql").render_as_string(hide_password=False)
 
 
+TEST_JWT_SECRET = "test-only-jwt-secret-0123456789abcdef"  # not a real secret
+
+
 @pytest.fixture(scope="session")
 def settings() -> Settings:
-    base = Settings(environment="test")  # the password comes from the environment / .env
+    # DB password comes from the environment / .env; the JWT key is fixed for tests.
+    base = Settings(environment="test", jwt_secret_key=SecretStr(TEST_JWT_SECRET))
     # Never run tests against the development (or any real) database.
     return base.model_copy(update={"postgres_db": f"{base.postgres_db}_test"})
 

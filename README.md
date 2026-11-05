@@ -4,7 +4,7 @@ A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 2 – database layer.** See the roadmap below.
+> Status: **Phase 3 – authentication.** See the roadmap below.
 
 ## Getting started
 
@@ -56,6 +56,29 @@ The schema exists twice: as ORM models + Alembic migrations
 Every business endpoint requires a JWT issued by `POST /login` (valid for 1 hour).
 Permissions are resolved from the database on every request.
 
+### Authentication
+
+```bash
+# 1. Register (login: 3-64 chars, letters/digits/_ . -, case-insensitive; password: 8-128 chars)
+curl -X POST localhost:8000/auth -H "Content-Type: application/json" \
+     -d '{"login": "alice", "password": "correct-horse-42", "repeat_password": "correct-horse-42"}'
+
+# 2. Log in -> {"access_token": "...", "token_type": "bearer", "expires_in": 3600}
+curl -X POST localhost:8000/login -H "Content-Type: application/json" \
+     -d '{"login": "alice", "password": "correct-horse-42"}'
+
+# 3. Send the token with every other request
+curl localhost:8000/projects -H "Authorization: Bearer <access_token>"
+```
+
+In Swagger UI (`/docs`) click **Authorize** and paste the `access_token`.
+
+- Passwords are stored only as salted **argon2id** hashes.
+- Tokens are HS256-signed JWTs (`sub` = user id, `iat`, `exp` = +60 min). The signing key
+  `JWT_SECRET_KEY` (≥ 32 characters) must come from the environment.
+- A wrong password and an unknown login return the same `401` in the same time.
+- `422` validation errors never echo the submitted values (e.g. passwords).
+
 ## API
 
 | Method | Path | Who | Success |
@@ -85,7 +108,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [x] **Phase 0** – Git repository, GitHub, conventions
 - [x] **Phase 1** – Skeleton: uv, `pyproject.toml`, tox, settings, Dockerfile, Docker Compose (API + Postgres), health check, first CI
 - [x] **Phase 2** – SQLAlchemy models, Alembic migrations, raw `schema.sql` (without ORM)
-- [ ] **Phase 3** – Auth: register, login, JWT
+- [x] **Phase 3** – Auth: register, login, JWT
 - [ ] **Phase 4** – Projects, invites, permissions
 - [ ] **Phase 5** – Documents, S3 storage, file validation, project size limit
 - [ ] **Phase 6** – Full CI: lint, type-check, tests, build, push to ECR
