@@ -16,7 +16,8 @@ Database strategy
 
 import asyncio
 import re
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from dataclasses import dataclass
 
 import asyncpg
 import pytest
@@ -28,7 +29,9 @@ from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from project_dashboard.core.config import Settings, get_settings
+from project_dashboard.core.security import create_access_token
 from project_dashboard.db.migrate import alembic_config
+from project_dashboard.db.models import User
 from project_dashboard.db.session import get_session
 from project_dashboard.main import create_app
 
@@ -105,6 +108,35 @@ async def db_session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
         finally:
             await session.close()
             await transaction.rollback()
+
+
+@dataclass
+class AuthUser:
+    """A user in the test database plus ready-made request headers with a valid JWT."""
+
+    user: User
+    headers: dict[str, str]
+
+    @property
+    def id(self) -> int:
+        return self.user.id
+
+
+MakeUser = Callable[[str], Awaitable[AuthUser]]
+
+
+@pytest.fixture
+def make_user(db_session: AsyncSession, settings: Settings) -> MakeUser:
+    """Create users directly in the DB (skipping argon2) - fast for authz tests."""
+
+    async def factory(login: str) -> AuthUser:
+        user = User(login=login, password_hash="not-a-real-hash")
+        db_session.add(user)
+        await db_session.flush()
+        token = create_access_token(user.id, settings)
+        return AuthUser(user=user, headers={"Authorization": f"Bearer {token}"})
+
+    return factory
 
 
 @pytest.fixture
