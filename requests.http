@@ -1,0 +1,77 @@
+# Ready-made API requests. Open in VS Code (extension "REST Client") or a
+# JetBrains IDE and click "Send Request" above each block.
+# The login response is stored, so later requests reuse its token automatically.
+# Switch @base to the server address after deployment (Phase 7).
+
+@base = http://localhost:8000
+
+### Health (no token needed)
+GET {{base}}/health/ready
+
+### Register alice
+POST {{base}}/auth
+Content-Type: application/json
+
+{"login": "alice", "password": "Correct-Horse-42!", "repeat_password": "Correct-Horse-42!"}
+
+### Register bob (to invite later)
+POST {{base}}/auth
+Content-Type: application/json
+
+{"login": "bob", "password": "Battery-Staple-7#", "repeat_password": "Battery-Staple-7#"}
+
+### Log in as alice
+# @name alice
+POST {{base}}/login
+Content-Type: application/json
+
+{"login": "alice", "password": "Correct-Horse-42!"}
+
+### Log in as bob
+# @name bob
+POST {{base}}/login
+Content-Type: application/json
+
+{"login": "bob", "password": "Battery-Staple-7#"}
+
+### alice creates a project (she becomes the owner)
+# @name project
+POST {{base}}/projects
+Authorization: Bearer {{alice.response.body.access_token}}
+Content-Type: application/json
+
+{"name": "Apollo", "description": "Moon landing"}
+
+### alice lists her projects (with documents and her role)
+GET {{base}}/projects
+Authorization: Bearer {{alice.response.body.access_token}}
+
+### Project details
+GET {{base}}/project/{{project.response.body.id}}/info
+Authorization: Bearer {{alice.response.body.access_token}}
+
+### bob cannot see it yet -> 404
+GET {{base}}/project/{{project.response.body.id}}/info
+Authorization: Bearer {{bob.response.body.access_token}}
+
+### alice invites bob -> 201, bob is now a participant
+POST {{base}}/project/{{project.response.body.id}}/invite?user=bob
+Authorization: Bearer {{alice.response.body.access_token}}
+
+### bob updates the details (participants may modify) -> 200
+PUT {{base}}/project/{{project.response.body.id}}/info
+Authorization: Bearer {{bob.response.body.access_token}}
+Content-Type: application/json
+
+{"name": "Apollo 11", "description": "First crewed Moon landing"}
+
+### bob tries to delete -> 403 (participants cannot delete)
+DELETE {{base}}/project/{{project.response.body.id}}
+Authorization: Bearer {{bob.response.body.access_token}}
+
+### alice deletes the project -> 204
+DELETE {{base}}/project/{{project.response.body.id}}
+Authorization: Bearer {{alice.response.body.access_token}}
+
+### No token -> 401
+GET {{base}}/projects
