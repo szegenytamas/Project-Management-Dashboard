@@ -79,10 +79,11 @@ def test_tampered_payload_is_rejected(settings: Settings) -> None:
 def test_unsigned_alg_none_token_is_rejected(settings: Settings) -> None:
     unsigned = jwt.encode(
         {"sub": "42", "iat": datetime.now(UTC), "exp": datetime.now(UTC) + timedelta(hours=1)},
-        key=None,
+        key="",  # the "none" algorithm takes no key; PyJWT treats "" as "no key"
         algorithm="none",
     )
 
+    assert unsigned.endswith(".")  # header.payload. - empty signature
     with pytest.raises(InvalidTokenError):
         decode_access_token(unsigned, settings)
 

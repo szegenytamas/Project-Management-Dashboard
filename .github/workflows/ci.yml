@@ -119,7 +119,14 @@ jobs:
         run: |
           # A fresh random signing key for this run only - never a fixed value.
           export JWT_SECRET_KEY="$(openssl rand -hex 32)"
+          # S3 emulator (moto) on localhost:5000, with dummy credentials.
+          docker run -d --name s3 -p 5000:5000 motoserver/moto:5.2.4
+          export S3_ENDPOINT_URL=http://localhost:5000 S3_CREATE_BUCKET=true
+          export AWS_ACCESS_KEY_ID=ci AWS_SECRET_ACCESS_KEY=ci
+          for i in $(seq 1 20); do curl -fs http://localhost:5000/moto-api/ >/dev/null 2>&1 && break; sleep 1; done
+
           APP_ENV="-e POSTGRES_HOST -e POSTGRES_PORT -e POSTGRES_USER -e POSTGRES_PASSWORD -e POSTGRES_DB -e JWT_SECRET_KEY"
+          APP_ENV="$APP_ENV -e S3_ENDPOINT_URL -e S3_CREATE_BUCKET -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY"
           docker run --rm --network host $APP_ENV project-dashboard:ci \
             python -m project_dashboard.db.migrate
           docker run -d --name api --network host $APP_ENV project-dashboard:ci
@@ -147,7 +154,17 @@ jobs:
           token=$(api -X POST http://localhost:8000/login -H 'Content-Type: application/json' \
             -d "{\"login\":\"$login\",\"password\":\"$pw\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
           echo "register + login OK"
-          api -X POST http://localhost:8000/projects -H "Authorization: Bearer $token" \
-            -H 'Content-Type: application/json' -d '{"name":"Smoke project","description":"from CI"}'; echo
+          project_id=$(api -X POST http://localhost:8000/projects -H "Authorization: Bearer $token" \
+            -H 'Content-Type: application/json' -d '{"name":"Smoke project","description":"from CI"}' \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
           api http://localhost:8000/projects -H "Authorization: Bearer $token" | grep -q '"Smoke project"'
           echo "create + list project OK"
+
+          # Upload a PDF to S3 through the API, download it, compare byte for byte.
+          printf '%%PDF-1.7\nsmoke test document\n%%%%EOF\n' > smoke.pdf
+          doc_id=$(api -X POST "http://localhost:8000/project/$project_id/documents" \
+            -H "Authorization: Bearer $token" -F "files=@smoke.pdf;type=application/pdf" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')
+          api "http://localhost:8000/document/$doc_id" -H "Authorization: Bearer $token" -o downloaded.pdf
+          cmp smoke.pdf downloaded.pdf
+          echo "upload + download document OK"

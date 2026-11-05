@@ -15,6 +15,7 @@ Database strategy
 """
 
 import asyncio
+import os
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ import pytest
 from alembic import command
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from moto import mock_aws
 from pydantic import SecretStr
 from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
@@ -34,6 +36,7 @@ from project_dashboard.db.migrate import alembic_config
 from project_dashboard.db.models import User
 from project_dashboard.db.session import get_session
 from project_dashboard.main import create_app
+from project_dashboard.storage import S3Storage, get_storage
 
 
 def asyncpg_dsn(url: URL) -> str:
@@ -46,10 +49,53 @@ TEST_JWT_SECRET = "test-only-jwt-secret-0123456789abcdef"  # not a real secret
 
 @pytest.fixture(scope="session")
 def settings() -> Settings:
-    # DB password comes from the environment / .env; the JWT key is fixed for tests.
-    base = Settings(environment="test", jwt_secret_key=SecretStr(TEST_JWT_SECRET))
+    # Fake AWS credentials: moto intercepts every S3 call, nothing leaves this machine.
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        os.environ[name] = "testing"
+    # DB password comes from the environment / .env; everything else is fixed for tests.
+    base = Settings(
+        environment="test",
+        jwt_secret_key=SecretStr(TEST_JWT_SECRET),
+        s3_bucket="test-documents",
+        s3_endpoint_url=None,  # never the local emulator from .env
+        aws_region="eu-central-1",
+        # Small limits so tests can reach them with tiny files.
+        max_file_size_bytes=TEST_MAX_FILE_SIZE,
+        project_size_limit_bytes=TEST_PROJECT_LIMIT,
+        max_files_per_upload=3,
+    )
     # Never run tests against the development (or any real) database.
     return base.model_copy(update={"postgres_db": f"{base.postgres_db}_test"})
+
+
+TEST_MAX_FILE_SIZE = 20_000
+TEST_PROJECT_LIMIT = 50_000
+
+
+@pytest.fixture(scope="session")
+async def s3_session(settings: Settings) -> AsyncIterator[S3Storage]:
+    """moto's in-memory S3, started ONCE per test run (starting it is slow)."""
+    with mock_aws():
+        s3 = S3Storage(settings)
+        await s3.ensure_bucket()
+        yield s3
+
+
+@pytest.fixture
+def storage(s3_session: S3Storage) -> S3Storage:
+    """A real S3 client against moto - with an empty bucket at the start of every test."""
+    keys = bucket_keys(s3_session)
+    if keys:
+        s3_session._client.delete_objects(
+            Bucket=s3_session.bucket, Delete={"Objects": [{"Key": k} for k in keys]}
+        )
+    return s3_session
+
+
+def bucket_keys(storage: S3Storage) -> list[str]:
+    """All object keys currently in the test bucket."""
+    response = storage._client.list_objects_v2(Bucket=storage.bucket)
+    return sorted(obj["Key"] for obj in response.get("Contents", []))
 
 
 async def _recreate_database(settings: Settings) -> None:
@@ -140,16 +186,17 @@ def make_user(db_session: AsyncSession, settings: Settings) -> MakeUser:
 
 
 @pytest.fixture
-def app(settings: Settings, db_session: AsyncSession) -> FastAPI:
+def app(settings: Settings, db_session: AsyncSession, storage: S3Storage) -> FastAPI:
     app = create_app(settings)
 
     async def override_get_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
-    # Dependency overrides: endpoints receive our test settings and the
-    # session inside the per-test transaction instead of the real ones.
+    # Dependency overrides: endpoints receive our test settings, the session
+    # inside the per-test transaction and the moto-backed S3 client.
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_storage] = lambda: storage
     return app
 
 

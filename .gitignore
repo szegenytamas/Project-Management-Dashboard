@@ -23,8 +23,10 @@ htmlcov/
 .env.*
 !.env.example
 
-# --- Local file storage used in development instead of S3 ---
-storage/
+# --- Local scratch storage in the repo root ---
+# The leading "/" anchors the pattern to the root. Without it, "storage/"
+# also matched src/project_dashboard/storage/ (the S3 client package).
+/storage/
 
 # --- Editors / OS ---
 .vscode/

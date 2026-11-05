@@ -46,6 +46,21 @@ class Settings(BaseSettings):
     jwt_algorithm: Literal["HS256"] = "HS256"
     jwt_expire_minutes: int = Field(default=60, gt=0)  # the brief: tokens last 1 hour
 
+    # --- Document storage (S3) ------------------------------------------
+    s3_bucket: str = "project-dashboard-documents"
+    s3_endpoint_url: str | None = None  # None = real AWS; set for the local emulator
+    aws_region: str = "eu-central-1"
+    s3_create_bucket: bool = False  # local emulator only: create the bucket at startup
+    # Leave EMPTY in AWS: boto3 then uses the EC2 instance's IAM role, so no
+    # real AWS key is ever written into a file. Only the local emulator needs
+    # these (any dummy value works there).
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: SecretStr | None = None
+
+    max_file_size_bytes: int = Field(default=10 * 1024 * 1024, gt=0)  # 10 MB per file
+    project_size_limit_bytes: int = Field(default=50 * 1024 * 1024, gt=0)  # 50 MB per project
+    max_files_per_upload: int = Field(default=10, gt=0)
+
     @property
     def database_url(self) -> URL:
         # URL.create escapes special characters (e.g. "@" or "/" in a password)
