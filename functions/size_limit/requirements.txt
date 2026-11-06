@@ -1,0 +1,4 @@
+# Packaged into the Lambda zip by package.py. boto3 is provided by the Lambda
+# Python runtime and deliberately NOT bundled (keeps the zip small).
+# Keep this version equal to the pg8000 dev dependency in pyproject.toml.
+pg8000==1.31.5
