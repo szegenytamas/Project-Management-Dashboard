@@ -5,8 +5,9 @@ Pydantic validates and converts them once at startup, so a typo such as
 `POSTGRES_PORT=54a2` fails immediately with a clear error instead of crashing later.
 """
 
+import ssl
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,12 @@ class Settings(BaseSettings):
     postgres_db: str = "dashboard"
     db_pool_size: int = 5
     db_echo: bool = False  # True prints every SQL statement - handy for learning
+    # TLS to the database. "disable" for the local container; "verify-full" for
+    # AWS RDS, which requires TLS (rds.force_ssl). verify-full = encrypt AND check
+    # that the server's certificate is signed by Amazon's RDS CA and matches the
+    # host name - otherwise anyone in the middle could pose as the database.
+    postgres_ssl_mode: Literal["disable", "verify-full"] = "disable"
+    postgres_ssl_root_cert: str = "/app/certs/rds-global-bundle.pem"
 
     # --- Authentication -------------------------------------------------
     # The key that signs every JWT. Whoever knows it can forge tokens for any
@@ -73,6 +80,14 @@ class Settings(BaseSettings):
             port=self.postgres_port,
             database=self.postgres_db,
         )
+
+    def database_connect_args(self) -> dict[str, Any]:
+        """Driver (asyncpg) options: connect timeout and, if enabled, verified TLS."""
+        args: dict[str, Any] = {"timeout": 5}  # seconds; fail fast if the DB is unreachable
+        if self.postgres_ssl_mode == "verify-full":
+            # create_default_context verifies the certificate chain AND the host name.
+            args["ssl"] = ssl.create_default_context(cafile=self.postgres_ssl_root_cert)
+        return args
 
 
 @lru_cache
