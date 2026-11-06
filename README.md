@@ -1,10 +1,22 @@
 # Project Management Dashboard
 
+[![CI](https://github.com/szegenytamas/Project-Management-Dashboard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szegenytamas/Project-Management-Dashboard/actions/workflows/ci.yml)
+
 A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 5 – documents in S3.** See the roadmap below.
+> Status: **Phase 6 – registry and documentation.** See the roadmap below.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [Architecture](docs/architecture.md) | Components, code layers, request and upload flows, delivery pipeline (with diagrams) |
+| [Database design](docs/database.md) | ER diagram, constraints, normalization, the denormalized total, **ORM vs. raw SQL** |
+| [Design decisions](docs/decisions.md) | Key choices and their alternatives, **REST conformance** |
+| [AI-assisted workflow](docs/ai-workflow.md) | How Claude Code was used: delegated, reviewed, decided |
+| [CLAUDE.md](CLAUDE.md) | Conventions the AI assistant works under |
 
 ## Getting started
 
@@ -40,6 +52,24 @@ the same S3 API as AWS, no account needed. Its files live in memory and are gone
 To click through the API, open [`requests.http`](requests.http) in VS Code (REST Client
 extension) or a JetBrains IDE: register, log in, then every request reuses the token.
 
+## Container image
+
+Every merge to `main` publishes the image that passed CI to GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/szegenytamas/project-management-dashboard:latest        # newest main
+docker pull ghcr.io/szegenytamas/project-management-dashboard:sha-<commit>  # one exact commit
+```
+
+The image needs the same environment variables as Docker Compose (`POSTGRES_*`,
+`JWT_SECRET_KEY`, `S3_*`); see [`.env.example`](.env.example). Migrations run separately with
+`python -m project_dashboard.db.migrate`.
+
+## AWS setup
+
+*Planned for Phase 7:* S3 bucket, Lambda (project size sum and limit), RDS PostgreSQL and the
+deployment on EC2. The setup steps and the evidence (screenshots, logs) will be documented here.
+
 ## Database
 
 | Table | Purpose |
@@ -66,6 +96,8 @@ therefore never points to a missing file.
 The schema exists twice: as ORM models + Alembic migrations
 (`src/project_dashboard/db/`) and as plain SQL without an ORM
 (`src/project_dashboard/db/schema.sql`). A test guarantees they are identical.
+The rationale (normalization, the denormalized total, ORM vs. raw SQL) is in
+[docs/database.md](docs/database.md).
 
 ## Access model
 
@@ -146,7 +178,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [x] **Phase 3** – Auth: register, login, JWT
 - [x] **Phase 4** – Projects, invites, owner/participant permissions, stronger password policy
 - [x] **Phase 5** – Documents in S3: upload (PDF/DOCX), download, replace, delete, size limit
-- [ ] **Phase 6** – CI pushes the image to a registry (GHCR); `docs/`: architecture, data model
+- [x] **Phase 6** – CI pushes the image to a registry (GHCR); `docs/`: architecture, data model
   rationale, ORM vs. raw SQL, design decisions
 - [ ] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
   deployment on EC2, evidence (screenshots / logs)
