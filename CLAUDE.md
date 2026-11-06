@@ -68,7 +68,10 @@ docker compose up --build        # full stack: db -> migrate -> api on :8000
 
 ## Current state
 
-Phases 0–5 done (skeleton, database, authentication, projects + invites + permissions,
-documents in S3). Next: Phase 6 – CI pushes the image to GHCR, plus `docs/`
-(architecture, database rationale, ORM vs raw SQL, decisions, REST conformance).
-See the roadmap in `README.md`.
+Phases 0–6 done (skeleton, database, authentication, projects + invites + permissions,
+documents in S3, image published to GHCR on every merge, `docs/` for graders).
+Next: Phase 7 – AWS: S3 bucket, Lambda (size sum + limit enforcement), RDS, EC2 deployment,
+evidence. See the roadmap in `README.md`.
+
+Keep `docs/` in sync with the code: `architecture.md` (diagrams), `database.md` (schema,
+normalization, ORM vs raw SQL) and `decisions.md` must change when the design does.
