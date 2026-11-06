@@ -27,7 +27,7 @@ def create_engine(settings: Settings) -> AsyncEngine:
         pool_size=settings.db_pool_size,
         pool_pre_ping=True,  # test a pooled connection before use (survives DB restarts)
         echo=settings.db_echo,
-        connect_args={"timeout": 5},  # seconds; fail fast if the DB is unreachable
+        connect_args=settings.database_connect_args(),  # timeout + TLS (see Settings)
     )
 
 

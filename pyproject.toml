@@ -31,6 +31,7 @@ dev = [
     "httpx>=0.28",
     "moto[s3]>=5.2.5",
     "mypy>=1.18",
+    "pg8000==1.31.5",
     "pytest>=8.4",
     "pytest-asyncio>=1.2",
     "pytest-cov>=7.0",
@@ -54,7 +55,9 @@ src = ["src", "tests"]
 # and only CI (a clean checkout) noticed. Ruff's own defaults still exclude
 # .venv, .tox, caches and build output; study-notes is local-only material.
 respect-gitignore = false
-extend-exclude = ["study-notes"]
+# With .gitignore ignored, generated folders must be listed here explicitly:
+# functions/*/build holds the Lambda zip's contents (third-party code).
+extend-exclude = ["study-notes", "functions/*/build"]
 
 [tool.ruff.lint]
 select = [
@@ -73,30 +76,37 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # `assert` is how pytest works; S101 would flag every test.
 # S105/S106: tests use obviously fake passwords and hashes.
-"tests/**" = ["S101", "S105", "S106"]
+# S608: role names in test setup are identifiers, which SQL cannot bind as parameters.
+"tests/**" = ["S101", "S105", "S106", "S608"]
 
 # ---------------------------------------------------------------- mypy ----
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["src", "tests"]
+files = ["src", "tests", "functions"]
+# The Lambda is a standalone module (not part of the app package); let mypy
+# resolve `import size_limit` the same way pytest does.
+mypy_path = "functions/size_limit"
+exclude = ["functions/.*/build/"]  # the packaged zip contents (third-party code)
 
 [[tool.mypy.overrides]]
-# asyncpg ships no type hints; treat it as untyped instead of failing.
-module = ["asyncpg", "asyncpg.*"]
+# asyncpg and pg8000 ship no type hints; treat them as untyped instead of failing.
+module = ["asyncpg", "asyncpg.*", "pg8000", "pg8000.*"]
 ignore_missing_imports = true
 
 # -------------------------------------------------------------- pytest ----
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["functions/size_limit"]  # the Lambda module is imported as `size_limit`
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 addopts = "-ra --strict-markers"
 
 [tool.coverage.run]
-source = ["project_dashboard"]
+source = ["project_dashboard", "functions/size_limit"]
+omit = ["functions/size_limit/package.py"]  # build script, run in CI rather than tested
 branch = true
 # SQLAlchemy's async layer switches between greenlets; without this, coverage
 # loses track after every `await session.execute(...)` and under-reports.

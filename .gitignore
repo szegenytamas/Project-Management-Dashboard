@@ -35,6 +35,6 @@ htmlcov/
 Thumbs.db
 desktop.ini
 
-# --- AWS Lambda build artifacts ---
-lambda/**/package/
+# --- AWS Lambda build artifacts (functions/*/build/, made by package.py) ---
+functions/*/build/
 *.zip

@@ -32,7 +32,10 @@ src/project_dashboard/
   storage/      S3 client (boto3 in a thread pool); moto in tests and Docker Compose
   core/         config, security (hashing, JWT), error handlers
   db/           models, session, migrations/, schema.sql (same schema without ORM)
+functions/size_limit/   the S3-triggered Lambda: plain SQL (pg8000), no ORM; grants.sql = its DB user
+certs/          Amazon RDS CA bundle for verified TLS to the database
 tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction per test
+                (Lambda tests use committed data and clean up, because the Lambda has its own connection)
 ```
 
 ## Rules
@@ -70,8 +73,12 @@ docker compose up --build        # full stack: db -> migrate -> api on :8000
 
 Phases 0–6 done (skeleton, database, authentication, projects + invites + permissions,
 documents in S3, image published to GHCR on every merge, `docs/` for graders).
-Next: Phase 7 – AWS: S3 bucket, Lambda (size sum + limit enforcement), RDS, EC2 deployment,
-evidence. See the roadmap in `README.md`.
+Phase 7 in progress: Part A (the size-limit Lambda as code, TLS to RDS) done; Part B = AWS
+setup in eu-north-1, run by the user step by step (network already built: custom VPC,
+private subnets for RDS and Lambda, no NAT). See the roadmap in `README.md`.
+
+**AWS rule:** the user runs every AWS command that creates, changes or deletes resources.
+Claude writes and explains the commands and may only run read-only checks (describe/list/get).
 
 Keep `docs/` in sync with the code: `architecture.md` (diagrams), `database.md` (schema,
 normalization, ORM vs raw SQL) and `decisions.md` must change when the design does.

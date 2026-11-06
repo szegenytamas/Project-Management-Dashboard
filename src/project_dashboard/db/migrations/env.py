@@ -8,6 +8,7 @@ Alembic runs this file for every command (upgrade, downgrade, revision
 
 import asyncio
 from logging.config import fileConfig
+from typing import Any
 
 from alembic import context
 from sqlalchemy import URL, pool
@@ -32,6 +33,14 @@ def get_url() -> URL:
     return url if url is not None else get_settings().database_url
 
 
+def get_connect_args() -> dict[str, Any]:
+    """Driver options (timeout, TLS): passed in by migrate.py, or from Settings for the CLI."""
+    if config.attributes.get("database_url") is not None:
+        args: dict[str, Any] = config.attributes.get("connect_args") or {}
+        return args
+    return get_settings().database_connect_args()
+
+
 def run_migrations_offline() -> None:
     """`alembic upgrade head --sql`: print the SQL instead of running it."""
     context.configure(
@@ -54,7 +63,9 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     # NullPool: a one-off command needs one connection, not a pool.
-    engine = create_async_engine(get_url(), poolclass=pool.NullPool)
+    engine = create_async_engine(
+        get_url(), poolclass=pool.NullPool, connect_args=get_connect_args()
+    )
     async with engine.connect() as connection:
         # Alembic itself is synchronous; run_sync bridges it onto the async connection.
         await connection.run_sync(do_run_migrations)

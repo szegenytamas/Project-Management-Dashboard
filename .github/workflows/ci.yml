@@ -108,6 +108,17 @@ jobs:
           name: dist
           path: dist/
 
+      # The size-limit Lambda's deployment zip (handler + pg8000 + RDS CA bundle),
+      # downloadable from the run page and used for deployment in Phase 7.
+      - name: Build Lambda package
+        run: uv run --no-project python functions/size_limit/package.py
+
+      - name: Upload Lambda package
+        uses: actions/upload-artifact@v7
+        with:
+          name: lambda-size-limit
+          path: functions/size_limit/build/size_limit.zip
+
       # Image name and tags for the registry. Registry names must be lower
       # case (our repository name is not), which metadata-action takes care of.
       #   sha-<commit>  every main build, immutable - deploy exactly this commit

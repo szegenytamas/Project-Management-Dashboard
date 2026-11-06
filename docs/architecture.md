@@ -119,6 +119,43 @@ PostgreSQL and S3 cannot share a transaction, so the order is chosen to keep the
 consistent: **writes go to S3 first, deletes go to the database first**. A database row
 therefore never points to a missing file; the worst case is an unreferenced object.
 
+## The size-limit Lambda
+
+Code: [`functions/size_limit/size_limit.py`](../functions/size_limit/size_limit.py). It runs in the
+private subnets, reaches S3 through the gateway endpoint and RDS through its security group.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant API
+    participant DB as PostgreSQL
+    participant S as S3
+    participant L as Lambda
+    API->>DB: SELECT project FOR UPDATE (lock)
+    API->>S: PUT projects/7/new.pdf
+    S-)L: ObjectCreated event
+    L->>DB: SELECT project FOR UPDATE
+    Note over L,DB: waits — the API still holds the lock
+    API->>DB: INSERT document, COMMIT (lock released)
+    DB-->>L: lock granted
+    L->>S: list projects/7/ → sum of sizes
+    alt total > limit
+        L->>DB: SELECT storage_key FROM documents (registered files)
+        L->>S: delete unregistered objects, newest first, until within limit
+    end
+    L->>DB: UPDATE projects SET total_size_bytes, COMMIT
+```
+
+- Because the Lambda takes **the same lock** as the API, it never sees an upload half-done:
+  a file is either registered (committed) or was removed again by the API's compensation.
+- Files the API registered are **never** deleted: the API checked the limit for them under that
+  lock. The Lambda removes only objects that bypassed the API (or orphans), and corrects the
+  denormalized total from S3, the source of truth for stored bytes.
+- Its own deletes trigger `ObjectRemoved` events; the next run simply recomputes the same total.
+  Every run is idempotent, so S3's at-least-once event delivery is harmless.
+- It uses plain SQL via **pg8000** (pure Python, no compiled code in the zip) and a database user
+  restricted by column-level grants ([`grants.sql`](../functions/size_limit/grants.sql)).
+
 ## Runtime and configuration
 
 - **One process per container** (uvicorn); scaling means more containers.
@@ -126,6 +163,9 @@ therefore never points to a missing file; the worst case is an unreferenced obje
 - **Configuration** comes only from environment variables (`pydantic-settings`), validated at
   startup; secrets (`POSTGRES_PASSWORD`, `JWT_SECRET_KEY`) have no defaults. AWS credentials
   come from the instance's IAM role, never from a file.
+- **TLS to the database**: on RDS, `POSTGRES_SSL_MODE=verify-full` encrypts the connection and
+  verifies the server certificate against Amazon's RDS CAs (bundled in the image) and the host
+  name, for the API, the migrations and the Lambda alike.
 - **Health**: `GET /health` (liveness, no database) and `GET /health/ready` (readiness,
   runs `SELECT 1`, returns 503 when the database is unreachable).
 

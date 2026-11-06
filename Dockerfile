@@ -36,6 +36,9 @@ FROM python:3.13-slim AS runtime
 RUN groupadd --system app && useradd --system --gid app --no-create-home app
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
+# Amazon RDS certificate authorities, to verify the database's TLS certificate
+# (POSTGRES_SSL_MODE=verify-full). Public certificates, not secrets.
+COPY certs/rds-global-bundle.pem /app/certs/rds-global-bundle.pem
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
