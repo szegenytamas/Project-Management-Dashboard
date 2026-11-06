@@ -65,10 +65,30 @@ The image needs the same environment variables as Docker Compose (`POSTGRES_*`,
 `JWT_SECRET_KEY`, `S3_*`); see [`.env.example`](.env.example). Migrations run separately with
 `python -m project_dashboard.db.migrate`.
 
+## Size-limit Lambda
+
+[`functions/size_limit/`](functions/size_limit/) is the AWS Lambda triggered by S3
+`ObjectCreated` / `ObjectRemoved` events. For each affected project it:
+
+1. **locks the project row** (`SELECT … FOR UPDATE`), the same lock the API holds during an
+   upload, so it waits until any upload in progress has committed;
+2. **sums the sizes of all objects** under `projects/{id}/` in S3;
+3. if the total exceeds `PROJECT_SIZE_LIMIT_BYTES`, **deletes objects that have no document
+   row** (uploaded around the API, or orphans), newest first, until the project fits.
+   Documents registered by the API are never deleted;
+4. **writes the total** to `projects.total_size_bytes`.
+
+It uses **plain SQL without an ORM** (pg8000) and a database user that may only read document
+keys and update that one column ([`grants.sql`](functions/size_limit/grants.sql)). Connections to
+RDS use verified TLS ([`certs/`](certs/)). Build the deployment zip with
+`uv run python functions/size_limit/package.py`; CI publishes it as the `lambda-size-limit`
+artifact of every run.
+
 ## AWS setup
 
-*Planned for Phase 7:* S3 bucket, Lambda (project size sum and limit), RDS PostgreSQL and the
-deployment on EC2. The setup steps and the evidence (screenshots, logs) will be documented here.
+*In progress (Phase 7):* network (custom VPC, public and private subnets, security groups),
+S3 bucket, RDS PostgreSQL, the Lambda and the deployment on EC2. The setup steps and the
+evidence (screenshots, logs) will be documented here.
 
 ## Database
 

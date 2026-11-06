@@ -140,6 +140,21 @@ SELECT * FROM documents WHERE project_id = ANY($2) ORDER BY id;  -- $2 = ids fro
 | **Complex queries** | Window functions or reports can become hard to read | Often clearer for analytics and reports |
 | **Dependencies / startup** | SQLAlchemy + models must be loaded | Only a driver; good for small, short-lived code such as a Lambda |
 
+**The raw-SQL query path in practice**: the size-limit Lambda
+([`size_limit.py`](../functions/size_limit/size_limit.py)) runs exactly these statements, with
+bound parameters, through the pg8000 driver:
+
+```sql
+SELECT id FROM projects WHERE id = :pid FOR UPDATE;                      -- wait for the API's lock
+SELECT storage_key FROM documents WHERE project_id = :pid;               -- only when over the limit
+UPDATE projects SET total_size_bytes = :total WHERE id = :pid;
+```
+
+It connects as a dedicated user that may do only that
+([`grants.sql`](../functions/size_limit/grants.sql)): `SELECT (id)` and `UPDATE (total_size_bytes)`
+on `projects`, `SELECT (project_id, storage_key)` on `documents`. A test applies these grants to a
+real role and proves both that the Lambda works and that `SELECT password_hash FROM users` is denied.
+
 **Why this project uses the ORM for the application:** many small CRUD queries, strict
 typing with mypy, migrations generated from the models, and permission queries that must
 be reused consistently. **Raw SQL** is used where an ORM adds nothing: the hand-written schema,

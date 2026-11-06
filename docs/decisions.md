@@ -52,6 +52,21 @@ Format: **decision** — *instead of* … — because ….
 | IAM role for AWS credentials | keys in configuration | No long-lived AWS key on disk; rotation is automatic |
 | **moto** for S3 in tests, Compose and CI | MinIO, LocalStack, a real dev bucket | One tool everywhere, no AWS account needed |
 
+## The size-limit Lambda and AWS
+
+| Decision | Instead of | Because |
+|---|---|---|
+| Lambda takes **the API's project lock** before counting | waiting a fixed time; no coordination | It waits exactly as long as an upload is in progress, so it never mistakes an in-flight file for a stray one |
+| Delete only **unregistered** objects when over the limit, newest first | delete the newest object, whatever it is | API-registered documents were already limit-checked under the lock; deleting one would leave a row pointing to a missing file |
+| Recompute the total from **S3** on every event | trust the stored total | S3 is the source of truth for stored bytes; drift heals itself; runs are idempotent |
+| **Plain SQL via pg8000** in the Lambda | SQLAlchemy; psycopg (binary) | Four statements need no ORM; pure Python means no compiled code to match Lambda's Linux |
+| Dedicated DB user with **column-level grants** | the application's user | The Lambda can lock projects, read document keys and write one column, nothing else; tested |
+| **Verified TLS** (`verify-full`) to RDS with the bundled RDS CA | `sslmode=require` (encrypt only), no TLS | RDS enforces TLS; verification also proves the server is really RDS (no man-in-the-middle) |
+| **Custom VPC**: public subnets for EC2, private subnets for RDS and Lambda, S3 gateway endpoint, **no NAT** | the default VPC; a NAT gateway | Private resources have no internet route at all; the gateway endpoint is free while a NAT costs ~35 USD/month |
+| Security groups reference **other security groups** | IP ranges | Rules follow the component, not its address; nothing else in the subnet gets in |
+| **SSM Session Manager** for server access | SSH with port 22 and a key pair | No open port, no key file; access is controlled by IAM and logged |
+| **HTTP only** for the demo | HTTPS via a load balancer + certificate | HTTPS needs a domain and ~18 USD/month for a load balancer; documented as a known limitation (tokens travel unencrypted) |
+
 ## Testing and delivery
 
 | Decision | Instead of | Because |
