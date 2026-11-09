@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListProjectFiles",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::project-dashboard-documents-192274357234",
+      "Condition": { "StringLike": { "s3:prefix": "projects/*" } }
+    },
+    {
+      "Sid": "RemoveFilesOverTheLimit",
+      "Effect": "Allow",
+      "Action": "s3:DeleteObject",
+      "Resource": "arn:aws:s3:::project-dashboard-documents-192274357234/projects/*"
+    }
+  ]
+}

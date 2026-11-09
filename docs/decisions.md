@@ -60,6 +60,8 @@ Format: **decision** — *instead of* … — because ….
 | Delete only **unregistered** objects when over the limit, newest first | delete the newest object, whatever it is | API-registered documents were already limit-checked under the lock; deleting one would leave a row pointing to a missing file |
 | Recompute the total from **S3** on every event | trust the stored total | S3 is the source of truth for stored bytes; drift heals itself; runs are idempotent |
 | **Plain SQL via pg8000** in the Lambda | SQLAlchemy; psycopg (binary) | Four statements need no ORM; pure Python means no compiled code to match Lambda's Linux |
+| Lambda zip built with **`uv.lock` as constraints** | installing only the pinned top-level package | Every indirect dependency (scramp, asn1crypto, …) gets the tested version; an unpinned new scramp release once broke pg8000 on TLS in production |
+| A test that connects **over TLS** to a TLS-enabled PostgreSQL | testing only plaintext connections | The bug above lived only on the TLS code path; the test reproduces it with the old versions and passes with the fixed ones |
 | Dedicated DB user with **column-level grants** | the application's user | The Lambda can lock projects, read document keys and write one column, nothing else; tested |
 | **Verified TLS** (`verify-full`) to RDS with the bundled RDS CA | `sslmode=require` (encrypt only), no TLS | RDS enforces TLS; verification also proves the server is really RDS (no man-in-the-middle) |
 | **Custom VPC**: public subnets for EC2, private subnets for RDS and Lambda, S3 gateway endpoint, **no NAT** | the default VPC; a NAT gateway | Private resources have no internet route at all; the gateway endpoint is free while a NAT costs ~35 USD/month |

@@ -58,6 +58,10 @@ tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction
   Never trust a client's file name or Content-Type: the type comes from `services/files.py`.
 - Tests assert behaviour (state in the database), not just status codes. Authorization changes
   need a row in `tests/test_authorization.py`.
+- **Test what production does.** Production connects to the database over TLS; the Lambda zip is
+  built from `uv.lock` (`package.py` uses it as constraints) and `tests/test_size_limit_tls.py`
+  connects over TLS. A pg8000/scramp incompatibility once passed every non-TLS test and failed
+  only in AWS.
 - Before handing over: `uv run tox` must pass (lint, type, test) with no warnings.
 
 ## Commands
@@ -73,9 +77,9 @@ docker compose up --build        # full stack: db -> migrate -> api on :8000
 
 Phases 0–6 done (skeleton, database, authentication, projects + invites + permissions,
 documents in S3, image published to GHCR on every merge, `docs/` for graders).
-Phase 7 in progress: Part A (the size-limit Lambda as code, TLS to RDS) done; Part B = AWS
-setup in eu-north-1, run by the user step by step (network already built: custom VPC,
-private subnets for RDS and Lambda, no NAT). See the roadmap in `README.md`.
+Phase 7 done: deployed in eu-north-1 (custom VPC, EC2 + Docker, RDS PostgreSQL 17.9, S3,
+size-limit Lambda), documented with evidence in `docs/aws.md`; policies and server scripts in
+`infra/aws/`. Next: Phase 8 extensions. See the roadmap in `README.md`.
 
 **AWS rule:** the user runs every AWS command that creates, changes or deletes resources.
 Claude writes and explains the commands and may only run read-only checks (describe/list/get).

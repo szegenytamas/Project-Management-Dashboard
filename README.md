@@ -6,7 +6,7 @@ A REST API to create, update, share and delete projects and their attached
 documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 (EC2, RDS, S3, Lambda), with CI/CD on GitHub Actions.
 
-> Status: **Phase 6 – registry and documentation.** See the roadmap below.
+> Status: **Phase 7 – deployed on AWS** (eu-north-1). See the roadmap below.
 
 ## Documentation
 
@@ -15,6 +15,7 @@ documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 | [Architecture](docs/architecture.md) | Components, code layers, request and upload flows, delivery pipeline (with diagrams) |
 | [Database design](docs/database.md) | ER diagram, constraints, normalization, the denormalized total, **ORM vs. raw SQL** |
 | [Design decisions](docs/decisions.md) | Key choices and their alternatives, **REST conformance** |
+| [AWS deployment](docs/aws.md) | Deployed architecture, resources, security, **setup notes**, **evidence**, costs, teardown |
 | [AI-assisted workflow](docs/ai-workflow.md) | How Claude Code was used: delegated, reviewed, decided |
 | [CLAUDE.md](CLAUDE.md) | Conventions the AI assistant works under |
 
@@ -86,9 +87,14 @@ artifact of every run.
 
 ## AWS setup
 
-*In progress (Phase 7):* network (custom VPC, public and private subnets, security groups),
-S3 bucket, RDS PostgreSQL, the Lambda and the deployment on EC2. The setup steps and the
-evidence (screenshots, logs) will be documented here.
+Deployed in **eu-north-1** (Stockholm): the API in Docker on **EC2** (public subnet, no SSH,
+Session Manager), **RDS PostgreSQL 17** in private subnets with verified TLS, documents in **S3**,
+and the size-limit **Lambda** on S3 events, all in a custom VPC without a NAT gateway. IAM roles
+instead of keys; secrets in SSM Parameter Store.
+
+Setup steps, security design, verification evidence (screenshots, CloudWatch logs), known
+limitations, costs and teardown: **[docs/aws.md](docs/aws.md)**. Policies and server scripts:
+[`infra/aws/`](infra/aws/).
 
 ## Database
 
@@ -200,7 +206,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [x] **Phase 5** – Documents in S3: upload (PDF/DOCX), download, replace, delete, size limit
 - [x] **Phase 6** – CI pushes the image to a registry (GHCR); `docs/`: architecture, data model
   rationale, ORM vs. raw SQL, design decisions
-- [ ] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
+- [x] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
   deployment on EC2, evidence (screenshots / logs)
 - [ ] **Phase 8** – Extensions: seed data, documented AI-assisted workflow, continuous deployment,
   security hardening
