@@ -3,8 +3,13 @@
     uv run python functions/size_limit/package.py
 
 The zip contains the handler module, its pure-Python dependencies (pg8000 and
-friends, from requirements.txt) and the RDS CA bundle for verified TLS. boto3
-is not bundled: the Lambda Python runtime provides it.
+friends) and the RDS CA bundle for verified TLS. boto3 is not bundled: the
+Lambda Python runtime provides it.
+
+Dependency versions come from uv.lock - exactly the versions the tests ran
+with, including indirect ones (scramp, asn1crypto, ...). Installing only the
+pinned pg8000 once pulled in a brand-new scramp release that broke pg8000 on
+TLS connections - in production only, because the tests did not use TLS.
 """
 
 import shutil
@@ -28,6 +33,16 @@ def main() -> None:
     if uv is None:
         raise SystemExit("uv not found on PATH - see README, 'Getting started'")
 
+    # The locked versions of every dev dependency, as pip-style constraints.
+    # Constraints restrict versions without installing anything by themselves.
+    constraints = BUILD / "constraints.txt"
+    subprocess.run(  # noqa: S603 - fixed arguments, no user input
+        [uv, "export", "--format", "requirements-txt", "--no-hashes", "--no-emit-project",
+         "--only-group", "dev", "--quiet", "--output-file", str(constraints)],
+        check=True,
+        cwd=ROOT,
+    )  # fmt: skip
+
     # Install for Lambda's platform, not the developer's (matters on Windows/macOS).
     subprocess.run(  # noqa: S603 - fixed arguments, no user input
         [
@@ -45,6 +60,8 @@ def main() -> None:
             ":all:",
             "-r",
             str(HERE / "requirements.txt"),
+            "--constraint",
+            str(constraints),
         ],
         check=True,
     )
