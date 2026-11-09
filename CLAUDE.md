@@ -58,6 +58,10 @@ tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction
   Never trust a client's file name or Content-Type: the type comes from `services/files.py`.
 - Tests assert behaviour (state in the database), not just status codes. Authorization changes
   need a row in `tests/test_authorization.py`.
+- **Test what production does.** Production connects to the database over TLS; the Lambda zip is
+  built from `uv.lock` (`package.py` uses it as constraints) and `tests/test_size_limit_tls.py`
+  connects over TLS. A pg8000/scramp incompatibility once passed every non-TLS test and failed
+  only in AWS.
 - Before handing over: `uv run tox` must pass (lint, type, test) with no warnings.
 
 ## Commands
