@@ -177,8 +177,10 @@ flowchart LR
     checks --> build["Build<br/>wheel + Docker image"]
     build --> smoke["Smoke test the image<br/>migrate · register · login ·<br/>project · upload/download"]
     smoke -->|"merge to main only"| push["Push to GHCR<br/>:sha-&lt;commit&gt; and :latest"]
-    push -.->|Phase 7| deploy["Deploy to EC2"]
+    push --> deploy["Deploy to EC2<br/>OIDC role → SSM Run Command<br/>deploy.sh sha-&lt;commit&gt;"]
+    deploy --> live["Check /health/ready<br/>from the internet"]
 ```
 
 `main` is protected by a ruleset: changes arrive only through pull requests whose three CI
-jobs pass. The published image is exactly the one that passed the smoke test.
+jobs pass. The published image is exactly the one that passed the smoke test, and on `main` it
+is deployed automatically - details in [aws.md](aws.md#continuous-deployment).

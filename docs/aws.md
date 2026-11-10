@@ -95,6 +95,58 @@ verified with read-only checks before the next one.
    `POSTGRES_SSL_MODE=verify-full`, `PROJECT_SIZE_LIMIT_BYTES=52428800`; S3 trigger for all
    create and delete events under `projects/`.
 
+## Continuous deployment
+
+After every merge to `main`, the CI job **Deploy to AWS** puts the image that was just tested and
+pushed (`sha-<commit>`) live on the server:
+
+```mermaid
+sequenceDiagram
+    participant GH as GitHub Actions<br/>(environment: production)
+    participant STS as AWS STS
+    participant SSM as SSM Run Command
+    participant EC2 as EC2: deploy.sh
+    GH->>GH: request OIDC token (repo, environment)
+    GH->>STS: AssumeRoleWithWebIdentity(token)
+    STS-->>GH: temporary credentials (1 h)
+    GH->>SSM: SendCommand ProjectDashboard-Deploy, imageTag=sha-abc1234
+    SSM->>EC2: IMAGE_TAG=sha-abc1234 deploy.sh (as root)
+    EC2->>EC2: env from SSM, pull, migrate, restart, wait for /health/ready
+    GH->>SSM: GetCommandInvocation (poll until done, print the output)
+    GH->>EC2: GET /health/ready over the internet
+```
+
+| Piece | What it allows | File |
+|---|---|---|
+| IAM OIDC identity provider `token.actions.githubusercontent.com` | AWS accepts tokens signed by GitHub | - |
+| Role `project-dashboard-github-deploy`, trust policy | Only tokens for **this repository's `production` environment**, audience `sts.amazonaws.com` | [`github-oidc-trust-policy.json`](../infra/aws/github-oidc-trust-policy.json) |
+| The role's permission policy | `ssm:SendCommand` with **one document** on **one instance**; read the command's result | [`github-deploy-policy.json`](../infra/aws/github-deploy-policy.json) |
+| SSM document `ProjectDashboard-Deploy` | Runs only `deploy.sh`; the image tag must match `sha-<7 hex>` or `latest` | [`ssm-deploy-document.json`](../infra/aws/ssm-deploy-document.json) |
+| GitHub environment `production` | Deployments only from `main`; holds the variables `AWS_DEPLOY_ROLE_ARN`, `EC2_INSTANCE_ID`, `API_URL` | GitHub settings |
+
+Why it is built this way:
+
+- **No stored AWS keys.** GitHub holds no access key that could leak or need rotating; each run
+  gets credentials valid for one hour, and only this repository's `production` environment can
+  obtain them.
+- **No SSH, no new open port.** Run Command reaches the server through the SSM agent's outbound
+  connection - the same channel as Session Manager.
+- **The role cannot run arbitrary commands.** The AWS-provided `AWS-RunShellScript` document would
+  let it run anything as root. The custom document only runs `deploy.sh`, and its `allowedPattern`
+  rejects any image tag that is not `sha-<7 hex>` or `latest`, so nothing can be injected.
+- **The exact tested image.** The job deploys `sha-<commit>`, not `latest`: if two merges follow each
+  other quickly, each deploys its own image. Deployments never overlap (`concurrency`), and runs
+  on `main` are never cancelled half-way.
+- **Branch restriction.** The role trusts the environment, not a branch, so IAM Access Analyzer
+  suggests also checking the branch. The branch is enforced by the environment's deployment
+  rule (only `main`), and GitHub lists every deployment under *Environments*.
+
+**Rollback:** re-run the Deploy job of an older successful run in GitHub Actions (it deploys that
+run's `sha-` image), or run `deploy.sh` with that tag in Session Manager.
+
+Limitation: SSM runs the copy of `deploy.sh` on the server. A change to `deploy.sh` or
+`config.sh` must be copied to `/opt/project-dashboard/` by hand.
+
 ## Verification and evidence
 
 ### The API from the internet
@@ -159,7 +211,8 @@ the project completely, so no total stayed wrong.
 
 ## Operations
 
-**Deploy a new version** (on the server, in Session Manager):
+**Deploy a new version:** automatic - every merge to `main` that passes CI is deployed (see
+[Continuous deployment](#continuous-deployment)). By hand, on the server in Session Manager:
 
 ```bash
 sudo /opt/project-dashboard/deploy.sh                       # newest image (:latest)
@@ -171,7 +224,9 @@ neither the shell history nor the process list:
 
 ```bash
 read -rsp 'Demo password: ' SEED_PASSWORD && export SEED_PASSWORD
-sudo --preserve-env=SEED_PASSWORD docker run --rm --env-file /etc/project-dashboard.env \n  -e SEED_PASSWORD ghcr.io/szegenytamas/project-management-dashboard:latest \n  python -m project_dashboard.db.seed
+sudo --preserve-env=SEED_PASSWORD docker run --rm --env-file /etc/project-dashboard.env \
+  -e SEED_PASSWORD ghcr.io/szegenytamas/project-management-dashboard:latest \
+  python -m project_dashboard.db.seed
 unset SEED_PASSWORD
 ```
 
