@@ -232,10 +232,16 @@ neither the shell history nor the process list:
 ```bash
 read -rsp 'Demo password: ' SEED_PASSWORD && export SEED_PASSWORD
 sudo --preserve-env=SEED_PASSWORD docker run --rm --env-file /etc/project-dashboard.env \
-  -e SEED_PASSWORD ghcr.io/szegenytamas/project-management-dashboard:latest \
+  -e SEED_PASSWORD "$(sudo docker inspect -f '{{.Config.Image}}' api)" \
   python -m project_dashboard.db.seed
 unset SEED_PASSWORD
 ```
+
+The image is taken from the running `api` container, so the seed is exactly the code that is
+live. Do not use `:latest` here: continuous deployment pulls `sha-<commit>` images, so the
+server's local `:latest` is whatever was pulled by hand last time - possibly much older, and
+`docker run` does not download an image it already has. (This once made the seed silently
+ignore `--reset-passwords`.)
 
 If `alice` or `bob` already existed (created by hand earlier), the seed keeps their passwords and
 says so. Append `--reset-passwords` to the `python -m project_dashboard.db.seed` line to give the
