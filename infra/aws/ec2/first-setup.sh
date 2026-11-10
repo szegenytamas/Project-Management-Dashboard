@@ -6,6 +6,10 @@
 #   1. database user "dashboard" owns the database        (as dbadmin)
 #   2. deploy.sh: migrations create the tables, API starts (as dashboard)
 #   3. least-privilege user "size_lambda" for the Lambda   (as dbadmin)
+#
+# It reads the dbadmin and size_lambda passwords from SSM. After the setup those
+# two were removed from the instance role (least privilege): to run this again,
+# add their parameter ARNs back to ec2-role-policy.json for the duration.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ./config.sh
