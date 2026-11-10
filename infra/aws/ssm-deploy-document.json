@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Deploy one Project Dashboard image on the API server by running deploy.sh. The only command the CI deploy role may run.",
+  "parameters": {
+    "imageTag": {
+      "type": "String",
+      "description": "Image tag from GHCR: sha-<7 hex characters> or latest",
+      "allowedPattern": "^(sha-[0-9a-f]{7}|latest)$"
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "deploy",
+      "inputs": {
+        "timeoutSeconds": "600",
+        "runCommand": ["IMAGE_TAG='{{ imageTag }}' /opt/project-dashboard/deploy.sh"]
+      }
+    }
+  ]
+}

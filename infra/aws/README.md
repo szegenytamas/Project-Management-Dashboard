@@ -10,6 +10,9 @@ reviewable and versioned together with the code that relies on it.
 | `s3-lifecycle.json` | Lifecycle rule: clean up incomplete multipart uploads after 1 day |
 | `ec2-role-policy.json` | Inline policy of `project-dashboard-ec2-role`: document objects in the bucket, read the project's SSM parameters |
 | `lambda-role-policy.json` | Inline policy of `project-dashboard-lambda-role`: list `projects/*`, delete objects there |
+| `github-oidc-trust-policy.json` | Trust policy of `project-dashboard-github-deploy`: only GitHub OIDC tokens for this repository's `production` environment |
+| `github-deploy-policy.json` | Permission policy of that role: run the deploy document on the API server, read the result |
+| `ssm-deploy-document.json` | SSM document `ProjectDashboard-Deploy`: runs `deploy.sh` with a validated image tag |
 | `ec2/user-data.sh` | First-boot script of the API server: installs Docker |
 | `ec2/config.sh` | Shared settings for the server scripts (no secrets; those come from SSM) |
 | `ec2/db-setup.sql` | One-time, as `dbadmin`: create the `dashboard` user and make it the database owner |

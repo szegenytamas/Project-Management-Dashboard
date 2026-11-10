@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RunOnlyTheDeployDocumentOnOnlyTheApiServer",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": [
+        "arn:aws:ssm:eu-north-1:192274357234:document/ProjectDashboard-Deploy",
+        "arn:aws:ec2:eu-north-1:192274357234:instance/i-0cd01b6555a8f08b2"
+      ]
+    },
+    {
+      "Sid": "ReadTheResultOfTheCommand",
+      "Effect": "Allow",
+      "Action": "ssm:GetCommandInvocation",
+      "Resource": "*"
+    }
+  ]
+}
