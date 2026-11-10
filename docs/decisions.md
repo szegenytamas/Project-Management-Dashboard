@@ -104,6 +104,9 @@ Format: **decision** — *instead of* … — because ….
 | DOM built with **`textContent`**; strict CSP without `'unsafe-inline'` | `innerHTML` templates | Server data can never become markup; injected code could not run anyway |
 | UI files with **`Cache-Control: no-cache`** (+ ETag) | no header | Found in testing: browsers kept an old file after an update; now they revalidate and get a 304 when unchanged |
 | Downloads via `fetch` + `blob:` URL | a plain link | A link cannot send the `Authorization` header |
+| Uploads via **`XMLHttpRequest`** | `fetch()` | Only XHR reports upload progress (`upload.onprogress`) for the progress bar |
+| Icons as an **inline SVG sprite** | an icon font; a CDN icon library | Works under the strict CSP (no external fonts or scripts), one request, themable with `currentColor` |
+| Usage bar uses the **50 MB limit as a UI constant** | a new endpoint exposing the limit | The API contract stays unchanged; the server still enforces its own setting |
 
 ## REST conformance
 

@@ -61,6 +61,13 @@ sequenceDiagram
   inline code. Server data is inserted with `textContent`, never `innerHTML` (a test guards it).
 - **The server decides**: the UI hides owner-only buttons for participants, but every
   permission is enforced by the API exactly as for Swagger or curl.
+- **Uploads** by drag-and-drop or file picker; quick checks first (type, 10 MB, 10 files, free
+  space), then `XMLHttpRequest`, whose `upload.onprogress` drives the progress bar - `fetch()` cannot
+  report upload progress. The server checks everything again.
+- **Look**: an inline SVG icon sprite, colour tokens for light and dark mode, project cards with a
+  usage bar ("9.0 MB of 50 MB", amber above 80 %, red above 95 %), loading skeletons and empty
+  states. Bar widths are set through `element.style`, which the CSP allows (inline `style=""`
+  attributes are not).
 - **Downloads** are fetched with the `Authorization` header (a plain link cannot send it) and
   saved under the original name from `Content-Disposition: filename*=UTF-8''...`.
 
