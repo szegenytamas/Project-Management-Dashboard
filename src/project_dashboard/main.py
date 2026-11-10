@@ -14,11 +14,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from project_dashboard import __version__
 from project_dashboard.api.routes import auth, documents, health, projects
 from project_dashboard.core.config import Settings, get_settings
 from project_dashboard.core.errors import register_error_handlers
+from project_dashboard.core.headers import SecurityHeadersMiddleware
+from project_dashboard.core.rate_limit import RateLimiter
 from project_dashboard.db.session import create_engine, create_sessionmaker
 from project_dashboard.storage import S3Storage
 
@@ -56,9 +59,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,  # Swagger UI at /docs is enough
     )
     app.state.settings = settings
+    # One limiter per application: tests get a fresh one with every app.
+    app.state.auth_rate_limiter = RateLimiter(settings.auth_rate_limit_per_minute, 60)
     register_error_handlers(app)
+    add_middleware(app, settings)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(projects.router)
     app.include_router(documents.router)
     return app
+
+
+def add_middleware(app: FastAPI, settings: Settings) -> None:
+    # The middleware added LAST runs FIRST (outermost). Security headers go on
+    # last, so they are also on the answers CORS gives without calling the app.
+    if settings.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_allowed_origins,  # an explicit list, never "*"
+            allow_methods=["GET", "POST", "PUT", "DELETE"],
+            allow_headers=["Authorization", "Content-Type"],
+            expose_headers=["Content-Disposition"],  # lets a web UI read download names
+            allow_credentials=False,  # the token travels in a header, not in cookies
+            max_age=600,
+        )
+    docs = {p for p in (app.docs_url, app.swagger_ui_oauth2_redirect_url) if p is not None}
+    app.add_middleware(SecurityHeadersMiddleware, html_paths=frozenset(docs))
