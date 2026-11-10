@@ -19,11 +19,10 @@ changed, and why. The conventions the AI works under are in [`CLAUDE.md`](../CLA
 
 ### Skills and tools used
 
-| Skill / tool   | Used for                                                     |
-| -------------- | ------------------------------------------------------------ |
-| PDF skill      | Study guides and the technology-decisions document per phase |
-| Artifacts      | An interactive flowchart page of every application flow      |
-| `/code-review` | <!-- e.g. reviewing each PR before merging -->               |
+| Skill / tool | Used for                                                     |
+| ------------ | ------------------------------------------------------------ |
+| PDF skill    | Study guides and the technology-decisions document per phase |
+| Artifacts    | An interactive flowchart page of every application flow      |
 
 ---
 
@@ -140,3 +139,60 @@ changed, and why. The conventions the AI works under are in [`CLAUDE.md`](../CLA
   - I run all AWS commands that change resources myself; the AI only runs read-only checks.
   - Region eu-north-1 and a 30 USD monthly budget alert, so costs stay visible.
   - I set up a separate IAM user for the work instead of using the root user.
+
+## Phase 8 – Extensions
+
+### 8a – Seed data and migration test
+
+- **Delegated:**
+  - A seed script with demo users, projects and documents (`python -m project_dashboard.db.seed`)
+    and a "stairway" test that runs every migration up, down and up again.
+- **Reviewed / verified myself:**
+  - I checked that the seed goes through the same service functions as the API, so the demo
+    data follows every rule (hashed passwords, one owner, files in S3, correct totals), and
+    that running it twice changes nothing.
+- **Decided or changed:**
+  - I agreed that production has no default demo password: the seed refuses to run there
+    unless `SEED_PASSWORD` is given, because the repository is public.
+  - I decided to write one study guide for the whole of Phase 8 instead of one per part.
+
+### 8b – Continuous deployment
+
+- **Delegated:**
+  - The deploy job in CI, the IAM trust and permission policies, the SSM deploy document and
+    the documentation.
+- **Reviewed / verified myself:**
+  - I set up the AWS side myself in the console: the GitHub identity provider, the deploy
+    role with its policies, and the SSM document. I also created the GitHub `production`
+    environment (only `main`, three variables) before merging.
+  - Before letting CI use it, I ran the deploy document by hand in Run Command, and I tried
+    to inject a command (`latest;reboot`). AWS rejected it because of the document's
+    pattern - the test I wanted to fail did fail.
+  - The first automatic deploy failed with "Not authorized to perform
+    AssumeRoleWithWebIdentity". The rejected attempt in CloudTrail showed that GitHub sends
+    an **immutable subject** with numeric owner and repository IDs, while the trust policy
+    expected the name-only format. I updated the trust policy, re-ran the job, and the next
+    merge deployed on the first try.
+  - My commits once landed on `main` instead of a branch. They were not pushed yet, so I
+    moved them to a branch and kept the pull-request workflow.
+- **Decided or changed:**
+  - I chose to do the AWS steps in the console instead of the CLI, using the same JSON files
+    from the repository, so the live configuration matches the repo (checked afterwards).
+  - Kept the immutable OIDC subject instead of switching it off, because numeric IDs cannot
+    be reused by a re-created repository.
+
+### 8c – Security hardening
+
+- **Delegated:**
+  - Rate limiting for login and registration, security headers, optional CORS, dependency
+    and secret scanning in CI, and an OWASP API Top 10 checklist (`docs/security.md`).
+- **Reviewed / verified myself:**
+  - I removed the two setup-only secrets from the EC2 role in the console before merging;
+    the automatic deploy then proved the API still works with the smaller role.
+  - The live server sends the security headers and answers the 11th failed login in a
+    minute with 429.
+  - sudo docker logs api --tail 20 shows: real client IPs
+- **Decided or changed:**
+  - No Dependabot pull requests: I want to stay the only contributor in the history, so
+    vulnerabilities are found by `pip-audit` in CI instead.
+  - HTTPS is left as a documented gap, because it needs a domain name first.
