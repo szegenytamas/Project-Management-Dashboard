@@ -166,6 +166,15 @@ sudo /opt/project-dashboard/deploy.sh                       # newest image (:lat
 sudo IMAGE_TAG=sha-<commit> /opt/project-dashboard/deploy.sh   # one exact build, e.g. to roll back
 ```
 
+**Load the demo data** (once, for a demo). The password is read without echo, so it appears in
+neither the shell history nor the process list:
+
+```bash
+read -rsp 'Demo password: ' SEED_PASSWORD && export SEED_PASSWORD
+sudo --preserve-env=SEED_PASSWORD docker run --rm --env-file /etc/project-dashboard.env \n  -e SEED_PASSWORD ghcr.io/szegenytamas/project-management-dashboard:latest \n  python -m project_dashboard.db.seed
+unset SEED_PASSWORD
+```
+
 **Update the Lambda:** `uv run python functions/size_limit/package.py`, then upload
 `functions/size_limit/build/size_limit.zip` in the console (Code → Upload from → .zip file) or with
 `aws lambda update-function-code --function-name project-dashboard-size-limit --zip-file fileb://functions/size_limit/build/size_limit.zip`.

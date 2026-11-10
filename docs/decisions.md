@@ -22,6 +22,8 @@ Format: **decision** — *instead of* … — because ….
 | **Denormalized** `projects.total_size_bytes` | `SUM()` on every upload | The size limit is checked on every upload; kept in sync under a row lock and recalculated by the Lambda — see [database.md](database.md) |
 | `BIGINT GENERATED ALWAYS AS IDENTITY` keys | UUIDs | Compact and fast; enumeration is prevented by 404 for non-members |
 | Role as `VARCHAR` + `CHECK` | native PostgreSQL `ENUM` | Adding a role is a simple migration; ENUMs are awkward to alter |
+| **Seed through the services**, idempotent | SQL inserts in a migration or fixture file | Demo data obeys every API rule (hashes, one owner, S3 objects, totals); data migrations would put demo data into production schema history |
+| No default seed password in production | one documented password everywhere | The repository is public; production demo accounts must not have a known password |
 
 ## Security
 
@@ -76,6 +78,7 @@ Format: **decision** — *instead of* … — because ….
 | Tests against a **real PostgreSQL**, one rolled-back transaction per test | SQLite, mocks, truncating tables | Tests the real constraints and migrations; fast and isolated |
 | Authorization matrix test (9 endpoints × 3 roles) that also checks state | status codes only | A broken implementation could act and then return 403 |
 | Query-count test for `GET /projects` | code review only | Turns the N+1 guard into a failing test |
+| Migration **stairway test** (up → down → up per revision) | only `upgrade head` | A broken `downgrade()` is found before it is needed for a rollback |
 | Smoke test of the **built image** in CI | unit tests only | Catches packaging, configuration and integration errors |
 | Push the **tested** image to **GHCR** with the built-in token | rebuild for release; Docker Hub; ECR with stored keys | What is deployed is what was tested; no stored secret; ECR needs AWS credentials in CI |
 | Feature branches, merge commits, Conventional Commits | squash merges (Phases 1–3), direct pushes | Incremental, readable history; `main` only changes through green PRs |
