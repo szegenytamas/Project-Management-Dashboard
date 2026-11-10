@@ -170,3 +170,14 @@ possible.
   diff), or if `schema.sql` produces different columns, defaults, constraints or indexes.
 - The test suite runs `upgrade head` at the start and `downgrade base` at the end, so both
   directions are exercised on every run.
+- `tests/test_migrations.py` is a **stairway test** on a scratch database: for every revision,
+  oldest first, it runs upgrade → downgrade → upgrade, then checks that a full downgrade leaves
+  no table, sequence or type behind and that the schema can be rebuilt from nothing.
+
+## Seed data
+
+`python -m project_dashboard.db.seed` adds the demo users, projects and documents. It calls the
+service functions (`register_user`, `create_project`, `invite_user`, `upload_documents`) instead
+of writing rows directly, so the data obeys every rule the API enforces: argon2 hashes, exactly one
+owner per project, files in S3 under `projects/{id}/`, and a correct `total_size_bytes`. It is
+idempotent: users are looked up by login and projects by owner + name before anything is created.

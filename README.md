@@ -28,6 +28,7 @@ cp .env.example .env         # local settings (DB on localhost:5433, S3 emulator
 uv sync                      # create .venv and install everything from uv.lock
 docker compose up -d db s3   # start PostgreSQL and the S3 emulator
 uv run alembic upgrade head  # create / update the tables
+uv run python -m project_dashboard.db.seed   # optional: demo users, projects, documents
 uv run tox                   # lint + type-check + tests, exactly like CI
 uv run project-dashboard     # run the API locally with auto-reload
 ```
@@ -49,6 +50,25 @@ the same S3 API as AWS, no account needed. Its files live in memory and are gone
 | `uv run alembic revision --autogenerate -m "..."` | create a migration from model changes – **always review it** |
 | `uv run alembic upgrade head` / `downgrade -1` | apply / undo migrations |
 | `python -m project_dashboard.db.migrate` | apply migrations without `alembic.ini` (containers, servers) |
+| `python -m project_dashboard.db.seed` | add the demo data (safe to run again) |
+
+### Demo data
+
+The seed creates three users and three projects with small PDF/DOCX documents, using the same
+services as the API (hashed passwords, one owner per project, files in S3, correct totals):
+
+| User | Owner of | Participant in |
+|---|---|---|
+| `alice` | Website relaunch, Mobile app | Research notes |
+| `bob` | Research notes | Website relaunch |
+| `carol` | – | – (the outsider: sees 404 for every project) |
+
+Locally all three log in with `Demo-Pass-2026!`. With `ENVIRONMENT=production` there is no
+default: the password must come from `SEED_PASSWORD`. Running the seed again changes nothing;
+existing users keep their passwords. In Compose: `docker compose run --rm api python -m
+project_dashboard.db.seed` (it starts the database, migrations and S3 first). The emulator keeps
+files in memory only: after restarting the `s3` container, the seeded rows remain but their files
+are gone - reset with `docker compose down -v` and seed again.
 
 To click through the API, open [`requests.http`](requests.http) in VS Code (REST Client
 extension) or a JetBrains IDE: register, log in, then every request reuses the token.
@@ -208,8 +228,8 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
   rationale, ORM vs. raw SQL, design decisions
 - [x] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
   deployment on EC2, evidence (screenshots / logs)
-- [ ] **Phase 8** – Extensions: seed data, documented AI-assisted workflow, continuous deployment,
-  security hardening
+- [ ] **Phase 8** – Extensions: ~~seed data~~ (done: seed script + migration stairway test),
+  documented AI-assisted workflow, continuous deployment, security hardening
 - [ ] **Phase 9** – *Optional:* web UI, share link via email
 
 ## Development workflow

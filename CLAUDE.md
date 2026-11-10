@@ -17,7 +17,7 @@ must not change without the mentor's agreement.
 - Auth: argon2id (`pwdlib`), JWT HS256 (`PyJWT`), 1-hour tokens
 - Tooling: `uv` (environment + lockfile), `tox` (+ `tox-uv`), `ruff`, `mypy --strict`, `pytest`
 - Docker (multi-stage, non-root), Docker Compose for local dev, GitHub Actions CI
-- Planned: AWS S3 + Lambda, RDS, EC2
+- AWS (eu-north-1): EC2 + Docker, RDS PostgreSQL 17, S3, an S3-triggered Lambda, SSM Parameter Store
 
 ## Layout
 
@@ -31,7 +31,8 @@ src/project_dashboard/
   services/files.py         file type detection (magic bytes) and size checks
   storage/      S3 client (boto3 in a thread pool); moto in tests and Docker Compose
   core/         config, security (hashing, JWT), error handlers
-  db/           models, session, migrations/, schema.sql (same schema without ORM)
+  db/           models, session, migrations/, schema.sql (same schema without ORM),
+                seed.py (demo data through the services; idempotent)
 functions/size_limit/   the S3-triggered Lambda: plain SQL (pg8000), no ORM; grants.sql = its DB user
 certs/          Amazon RDS CA bundle for verified TLS to the database
 tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction per test
@@ -79,7 +80,10 @@ Phases 0–6 done (skeleton, database, authentication, projects + invites + perm
 documents in S3, image published to GHCR on every merge, `docs/` for graders).
 Phase 7 done: deployed in eu-north-1 (custom VPC, EC2 + Docker, RDS PostgreSQL 17.9, S3,
 size-limit Lambda), documented with evidence in `docs/aws.md`; policies and server scripts in
-`infra/aws/`. Next: Phase 8 extensions. See the roadmap in `README.md`.
+`infra/aws/`.
+Phase 8 in progress: 8a seed data + migration stairway test done; next continuous
+deployment (8b), security hardening (8c), then the optional web UI (Phase 9).
+See the roadmap in `README.md`.
 
 **AWS rule:** the user runs every AWS command that creates, changes or deletes resources.
 Claude writes and explains the commands and may only run read-only checks (describe/list/get).
