@@ -137,6 +137,13 @@ Why it is built this way:
 - **The exact tested image.** The job deploys `sha-<commit>`, not `latest`: if two merges follow each
   other quickly, each deploys its own image. Deployments never overlap (`concurrency`), and runs
   on `main` are never cancelled half-way.
+- **Immutable subject.** The repository uses GitHub's immutable OIDC subject: the token says
+  `repo:szegenytamas@116868224/Project-Management-Dashboard@1445416289:environment:production`,
+  with the numeric owner and repository IDs next to the names. The trust policy matches exactly
+  that. If the repository were deleted or renamed, a new repository with the same name would get
+  different IDs and could not deploy. (The first deployment failed because the policy still
+  expected the classic `repo:<owner>/<repo>:...` format; CloudTrail's rejected
+  `AssumeRoleWithWebIdentity` event showed the subject GitHub really sent.)
 - **Branch restriction.** The role trusts the environment, not a branch, so IAM Access Analyzer
   suggests also checking the branch. The branch is enforced by the environment's deployment
   rule (only `main`), and GitHub lists every deployment under *Environments*.
