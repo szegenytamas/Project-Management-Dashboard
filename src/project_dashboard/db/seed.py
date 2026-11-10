@@ -18,11 +18,16 @@ Design
 - **Idempotent.** Running it twice changes nothing: existing users are kept
   (their passwords are NOT reset) and a project is skipped if its owner
   already has one with that name.
+- **Explicit password reset.** `--reset-passwords` sets the demo password on
+  the three demo accounts if they already exist (e.g. created by hand earlier).
+  It touches only alice, bob and carol, deletes nothing, and never runs unless
+  asked for.
 - **No known password in production.** Locally the demo password has a
   default; with ENVIRONMENT=production the password must come from the
   SEED_PASSWORD variable, so a public repository never knows it.
 """
 
+import argparse
 import asyncio
 import io
 import logging
@@ -81,6 +86,7 @@ PROJECTS = (
 class SeedReport:
     users_created: list[str] = field(default_factory=list)
     users_existing: list[str] = field(default_factory=list)
+    passwords_reset: list[str] = field(default_factory=list)
     projects_created: list[str] = field(default_factory=list)
     projects_existing: list[str] = field(default_factory=list)
 
@@ -204,11 +210,20 @@ async def _owned_project(session: AsyncSession, owner: User, name: str) -> Proje
 
 
 async def seed(
-    session: AsyncSession, storage: ObjectStorage, settings: Settings, password: str
+    session: AsyncSession,
+    storage: ObjectStorage,
+    settings: Settings,
+    password: str,
+    *,
+    reset_passwords: bool = False,
 ) -> SeedReport:
     report = SeedReport()
     accounts = {login: await _get_or_create_user(session, login, password, report)
                 for login in USERS}  # fmt: skip
+    if reset_passwords:
+        for login in report.users_existing:  # only the demo accounts that already existed
+            await users.set_password(session, accounts[login], password)
+            report.passwords_reset.append(login)
 
     for demo in PROJECTS:
         owner = accounts[demo.owner]
@@ -227,7 +242,7 @@ async def seed(
     return report
 
 
-async def run(settings: Settings) -> SeedReport:
+async def run(settings: Settings, *, reset_passwords: bool = False) -> SeedReport:
     password = seed_password(settings)
     engine = create_engine(settings)
     try:
@@ -235,24 +250,41 @@ async def run(settings: Settings) -> SeedReport:
         if settings.s3_create_bucket:  # local emulator only, as at API startup
             await storage.ensure_bucket()
         async with create_sessionmaker(engine)() as session:
-            return await seed(session, storage, settings, password)
+            return await seed(session, storage, settings, password, reset_passwords=reset_passwords)
     finally:
         await engine.dispose()
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Add the demo users, projects and documents.")
+    parser.add_argument(
+        "--reset-passwords",
+        action="store_true",
+        help="also set the demo password on alice, bob and carol if they already exist",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
-        report = asyncio.run(run(get_settings()))
+        report = asyncio.run(run(get_settings(), reset_passwords=args.reset_passwords))
     except SeedError as exc:
         logger.error("%s", exc)
         sys.exit(1)
     logger.info("Users created: %s", ", ".join(report.users_created) or "-")
-    logger.info("Users already present (unchanged): %s", ", ".join(report.users_existing) or "-")
+    unchanged = [u for u in report.users_existing if u not in report.passwords_reset]
+    logger.info("Passwords reset: %s", ", ".join(report.passwords_reset) or "-")
+    logger.info("Users already present (password unchanged): %s", ", ".join(unchanged) or "-")
     logger.info("Projects created: %s", "; ".join(report.projects_created) or "-")
     logger.info("Projects already present: %s", "; ".join(report.projects_existing) or "-")
-    if report.users_created:
-        logger.info("Log in as alice, bob or carol with the demo password.")
+    with_demo_password = report.users_created + report.passwords_reset
+    if with_demo_password:
+        logger.info("Log in with the demo password as: %s", ", ".join(with_demo_password))
+    if unchanged:
+        logger.info("%s kept their earlier password (--reset-passwords sets the demo one).",
+                    ", ".join(unchanged))  # fmt: skip
 
 
 if __name__ == "__main__":

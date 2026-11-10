@@ -75,7 +75,8 @@ services as the API (hashed passwords, one owner per project, files in S3, corre
 
 Locally all three log in with `Demo-Pass-2026!`. With `ENVIRONMENT=production` there is no
 default: the password must come from `SEED_PASSWORD`. Running the seed again changes nothing;
-existing users keep their passwords. In Compose: `docker compose run --rm api python -m
+existing users keep their passwords - unless `--reset-passwords` is given, which sets the demo
+password on `alice`, `bob` and `carol` (and no one else) if they already exist. In Compose: `docker compose run --rm api python -m
 project_dashboard.db.seed` (it starts the database, migrations and S3 first). The emulator keeps
 files in memory only: after restarting the `s3` container, the seeded rows remain but their files
 are gone - reset with `docker compose down -v` and seed again.

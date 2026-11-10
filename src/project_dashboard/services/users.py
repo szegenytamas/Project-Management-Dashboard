@@ -33,6 +33,12 @@ async def register_user(session: AsyncSession, login: str, password: str) -> Use
     return user
 
 
+async def set_password(session: AsyncSession, user: User, password: str) -> None:
+    """Replace a user's password (stored as a new argon2 hash with a new salt)."""
+    user.password_hash = await hash_password_async(password)
+    await session.commit()
+
+
 async def authenticate(session: AsyncSession, login: str, password: str) -> User | None:
     """Return the user if login and password match, otherwise None."""
     user = await session.scalar(select(User).where(User.login == login))
