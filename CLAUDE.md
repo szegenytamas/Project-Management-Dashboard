@@ -35,6 +35,7 @@ src/project_dashboard/
                 rate_limit.py (login/registration limit), headers.py (security headers)
   db/           models, session, migrations/, schema.sql (same schema without ORM),
                 seed.py (demo data through the services; idempotent)
+  web/          the browser UI at /app/: index.html, styles.css, app.js (no build step; textContent only)
 functions/size_limit/   the S3-triggered Lambda: plain SQL (pg8000), no ORM; grants.sql = its DB user
 certs/          Amazon RDS CA bundle for verified TLS to the database
 tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction per test
@@ -87,8 +88,8 @@ size-limit Lambda), documented with evidence in `docs/aws.md`; policies and serv
 `infra/aws/`.
 Phase 8 in progress: 8a seed data + migration stairway test done; 8b continuous deployment
 done (every merge to main deploys `sha-<commit>`); 8c security hardening done (rate limit,
-headers, CORS, pip-audit + gitleaks in CI, `docs/security.md`). Left: 8d (the user's AI-workflow
-text), then the optional web UI (Phase 9).
+headers, CORS, pip-audit + gitleaks in CI, `docs/security.md`). 8d done (the user's AI-workflow text).
+Phase 9: web UI at `/app/` done. Not done (optional): share link by email.
 See the roadmap in `README.md`.
 
 **AWS rule:** the user runs every AWS command that creates, changes or deletes resources.
