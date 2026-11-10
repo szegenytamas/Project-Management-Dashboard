@@ -31,7 +31,8 @@ src/project_dashboard/
   services/permissions.py   THE permission matrix - the only place roles are compared
   services/files.py         file type detection (magic bytes) and size checks
   storage/      S3 client (boto3 in a thread pool); moto in tests and Docker Compose
-  core/         config, security (hashing, JWT), error handlers
+  core/         config, security (hashing, JWT), error handlers,
+                rate_limit.py (login/registration limit), headers.py (security headers)
   db/           models, session, migrations/, schema.sql (same schema without ORM),
                 seed.py (demo data through the services; idempotent)
 functions/size_limit/   the S3-triggered Lambda: plain SQL (pg8000), no ORM; grants.sql = its DB user
@@ -65,6 +66,8 @@ tests/          pytest; real PostgreSQL "<db>_test", one rolled-back transaction
   connects over TLS. A pg8000/scramp incompatibility once passed every non-TLS test and failed
   only in AWS.
 - Before handing over: `uv run tox` must pass (lint, type, test) with no warnings.
+- Security controls are listed in `docs/security.md`; a new endpoint or AWS permission must
+  keep that table true.
 
 ## Commands
 
@@ -83,8 +86,9 @@ Phase 7 done: deployed in eu-north-1 (custom VPC, EC2 + Docker, RDS PostgreSQL 1
 size-limit Lambda), documented with evidence in `docs/aws.md`; policies and server scripts in
 `infra/aws/`.
 Phase 8 in progress: 8a seed data + migration stairway test done; 8b continuous deployment
-done (every merge to main deploys `sha-<commit>`); next security hardening (8c), then the
-optional web UI (Phase 9).
+done (every merge to main deploys `sha-<commit>`); 8c security hardening done (rate limit,
+headers, CORS, pip-audit + gitleaks in CI, `docs/security.md`). Left: 8d (the user's AI-workflow
+text), then the optional web UI (Phase 9).
 See the roadmap in `README.md`.
 
 **AWS rule:** the user runs every AWS command that creates, changes or deletes resources.
