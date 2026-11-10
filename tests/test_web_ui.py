@@ -64,3 +64,18 @@ async def test_ui_files_are_revalidated_after_a_deploy(client: AsyncClient) -> N
     assert first.headers["Cache-Control"] == "no-cache"
     again = await client.get("/app/app.js", headers={"If-None-Match": first.headers["etag"]})
     assert again.status_code == 304  # unchanged: nothing is downloaded again
+
+
+def test_html_has_no_inline_styles() -> None:
+    # The UI's CSP has no 'unsafe-inline' for styles: a style="..." attribute would be
+    # ignored by the browser. Widths are set from app.js through element.style instead.
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    markup = re.sub(r"<!--.*?-->", "", html, flags=re.DOTALL)  # comments may mention it
+    assert not re.search(r"\sstyle\s*=", markup)
+    assert "<style" not in html
+
+
+async def test_logo_is_served_as_svg(client: AsyncClient) -> None:
+    response = await client.get("/app/logo.svg")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")
