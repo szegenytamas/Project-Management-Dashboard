@@ -16,7 +16,8 @@ must not change without the mentor's agreement.
 - Pydantic v2 for every request/response body, `pydantic-settings` for configuration
 - Auth: argon2id (`pwdlib`), JWT HS256 (`PyJWT`), 1-hour tokens
 - Tooling: `uv` (environment + lockfile), `tox` (+ `tox-uv`), `ruff`, `mypy --strict`, `pytest`
-- Docker (multi-stage, non-root), Docker Compose for local dev, GitHub Actions CI
+- Docker (multi-stage, non-root), Docker Compose for local dev, GitHub Actions CI/CD
+  (deploy via GitHub OIDC role -> SSM Run Command document `ProjectDashboard-Deploy`)
 - AWS (eu-north-1): EC2 + Docker, RDS PostgreSQL 17, S3, an S3-triggered Lambda, SSM Parameter Store
 
 ## Layout
@@ -81,8 +82,9 @@ documents in S3, image published to GHCR on every merge, `docs/` for graders).
 Phase 7 done: deployed in eu-north-1 (custom VPC, EC2 + Docker, RDS PostgreSQL 17.9, S3,
 size-limit Lambda), documented with evidence in `docs/aws.md`; policies and server scripts in
 `infra/aws/`.
-Phase 8 in progress: 8a seed data + migration stairway test done; next continuous
-deployment (8b), security hardening (8c), then the optional web UI (Phase 9).
+Phase 8 in progress: 8a seed data + migration stairway test done; 8b continuous deployment
+done (every merge to main deploys `sha-<commit>`); next security hardening (8c), then the
+optional web UI (Phase 9).
 See the roadmap in `README.md`.
 
 **AWS rule:** the user runs every AWS command that creates, changes or deletes resources.

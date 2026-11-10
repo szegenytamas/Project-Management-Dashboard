@@ -82,6 +82,10 @@ docker pull ghcr.io/szegenytamas/project-management-dashboard:latest        # ne
 docker pull ghcr.io/szegenytamas/project-management-dashboard:sha-<commit>  # one exact commit
 ```
 
+After the push, the **Deploy to AWS** job puts that exact image live on the EC2 server: GitHub's
+OIDC token is exchanged for a short-lived AWS role (no stored keys), which may only run one SSM
+document - `deploy.sh` - on the server. See [AWS deployment](docs/aws.md#continuous-deployment).
+
 The image needs the same environment variables as Docker Compose (`POSTGRES_*`,
 `JWT_SECRET_KEY`, `S3_*`); see [`.env.example`](.env.example). Migrations run separately with
 `python -m project_dashboard.db.migrate`.
@@ -229,7 +233,8 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
 - [x] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
   deployment on EC2, evidence (screenshots / logs)
 - [ ] **Phase 8** – Extensions: ~~seed data~~ (done: seed script + migration stairway test),
-  documented AI-assisted workflow, continuous deployment, security hardening
+  documented AI-assisted workflow, ~~continuous deployment~~ (done: OIDC + SSM Run Command),
+  security hardening
 - [ ] **Phase 9** – *Optional:* web UI, share link via email
 
 ## Development workflow

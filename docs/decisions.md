@@ -69,6 +69,10 @@ Format: **decision** — *instead of* … — because ….
 | **Custom VPC**: public subnets for EC2, private subnets for RDS and Lambda, S3 gateway endpoint, **no NAT** | the default VPC; a NAT gateway | Private resources have no internet route at all; the gateway endpoint is free while a NAT costs ~35 USD/month |
 | Security groups reference **other security groups** | IP ranges | Rules follow the component, not its address; nothing else in the subnet gets in |
 | **SSM Session Manager** for server access | SSH with port 22 and a key pair | No open port, no key file; access is controlled by IAM and logged |
+| Continuous deployment via **GitHub OIDC** + a role | an IAM user's access keys stored as GitHub secrets | Nothing long-lived to leak or rotate; credentials last one hour and only this repository's `production` environment gets them |
+| **SSM Run Command** with a **custom document** that only runs `deploy.sh` | SSH from CI; `AWS-RunShellScript` | No open port, no key; the CI role cannot run arbitrary commands as root, and the image tag is validated by a pattern |
+| Deploy **`sha-<commit>`**, serialized, never cancelled on `main` | deploy `:latest`; cancel older runs | Each merge deploys exactly the image it tested; a deployment is never interrupted half-way |
+| Trust the GitHub **environment** `production` (branch rule: `main`) | trust `ref:refs/heads/main` | Adds deployment history and an optional approval step; other workflows on `main` cannot assume the role |
 | **HTTP only** for the demo | HTTPS via a load balancer + certificate | HTTPS needs a domain and ~18 USD/month for a load balancer; documented as a known limitation (tokens travel unencrypted) |
 
 ## Testing and delivery
