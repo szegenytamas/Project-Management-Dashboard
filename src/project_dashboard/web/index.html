@@ -4,17 +4,68 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Project Dashboard</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <!-- One ES module, no inline script: the page's Content-Security-Policy allows
-       only scripts from this site ('self'), so injected inline code cannot run. -->
+       only scripts from this site ('self'), so injected inline code cannot run.
+       There are no style="..." attributes either: the CSP forbids inline styles. -->
   <script type="module" src="app.js"></script>
 </head>
 <body>
+  <!-- Icon sprite: each <symbol> is drawn once and reused with <use href="#i-...">.
+       Plain SVG shapes (not scripts or styles), so the strict CSP allows them. -->
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 32 32">
+      <rect x="3" y="7" width="20" height="18" rx="4" fill="currentColor" opacity=".35"/>
+      <rect x="9" y="4" width="20" height="18" rx="4" fill="currentColor"/>
+      <path d="M14 11h10M14 15h7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+    </symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/>
+    </symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
+    </symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9h13l-3-3M20 15H7l3 3"/>
+    </symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>
+    </symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3 2.9 3 6"/>
+    </symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M12 5v14M5 12h14"/>
+    </symbol>
+    <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 5l-7 7 7 7"/>
+    </symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l4-4-4-4M14 12H4"/>
+    </symbol>
+  </svg>
+
   <header class="topbar">
-    <a class="brand" href="#" id="home-link">Project Dashboard</a>
+    <a class="brand" href="#" id="home-link">
+      <svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg>
+      <span>Project Dashboard</span>
+    </a>
     <div class="session" id="session" hidden>
-      <span>Signed in as <strong id="session-login"></strong></span>
-      <button type="button" class="link" id="logout">Sign out</button>
+      <span class="avatar" id="session-avatar" aria-hidden="true"></span>
+      <span class="who">Signed in as <strong id="session-login"></strong></span>
+      <button type="button" class="ghost" id="logout" title="Sign out">
+        <svg class="icon" aria-hidden="true"><use href="#i-logout"/></svg><span class="label">Sign out</span>
+      </button>
     </div>
   </header>
 
@@ -24,58 +75,83 @@
   <main>
     <!-- ================================================= sign in / register -->
     <section id="view-auth" class="view" hidden>
-      <div class="card narrow">
-        <div class="tabs" role="tablist">
-          <button type="button" role="tab" id="tab-login" aria-selected="true">Sign in</button>
-          <button type="button" role="tab" id="tab-register" aria-selected="false">Create account</button>
+      <div class="auth">
+        <div class="auth-intro">
+          <svg class="logo big" aria-hidden="true"><use href="#i-logo"/></svg>
+          <h1>Projects and their documents, shared with your team.</h1>
+          <p>Create projects, keep PDF and Word files together, and invite colleagues as
+            participants - you stay the owner.</p>
         </div>
+        <div class="card">
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" id="tab-login" aria-selected="true">Sign in</button>
+            <button type="button" role="tab" id="tab-register" aria-selected="false">Create account</button>
+          </div>
 
-        <form id="form-login" class="stack">
-          <label>Login <input name="login" autocomplete="username" required maxlength="64"></label>
-          <label>Password <input name="password" type="password" autocomplete="current-password" required maxlength="128"></label>
-          <button type="submit" class="primary">Sign in</button>
-        </form>
+          <form id="form-login" class="stack">
+            <label>Login <input name="login" autocomplete="username" required maxlength="64"></label>
+            <label>Password <input name="password" type="password" autocomplete="current-password" required maxlength="128"></label>
+            <button type="submit" class="primary">Sign in</button>
+          </form>
 
-        <form id="form-register" class="stack" hidden>
-          <label>Login <input name="login" autocomplete="username" required minlength="3" maxlength="64"
-                              pattern="[A-Za-z0-9_.\-]+" title="Letters, digits, _ . -"></label>
-          <label>Password <input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></label>
-          <label>Repeat password <input name="repeat_password" type="password" autocomplete="new-password" required></label>
-          <p class="hint">12–128 characters with an uppercase letter, a lowercase letter, a digit and a
-            special character. It must not contain your login.</p>
-          <button type="submit" class="primary">Create account</button>
-        </form>
+          <form id="form-register" class="stack" hidden>
+            <label>Login <input name="login" autocomplete="username" required minlength="3" maxlength="64"
+                                pattern="[A-Za-z0-9_.\-]+" title="Letters, digits, _ . -"></label>
+            <label>Password <input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></label>
+            <label>Repeat password <input name="repeat_password" type="password" autocomplete="new-password" required></label>
+            <p class="hint">12–128 characters with an uppercase letter, a lowercase letter, a digit and a
+              special character. It must not contain your login.</p>
+            <button type="submit" class="primary">Create account</button>
+          </form>
+        </div>
       </div>
     </section>
 
     <!-- ===================================================== project list -->
     <section id="view-projects" class="view" hidden>
-      <div class="row-between">
-        <h1>My projects</h1>
+      <div class="page-head">
+        <div>
+          <h1>My projects</h1>
+          <p class="hint" id="project-count"></p>
+        </div>
       </div>
-      <form id="form-create" class="card inline-form">
+      <form id="form-create" class="card create">
+        <svg class="icon muted" aria-hidden="true"><use href="#i-folder"/></svg>
         <input name="name" placeholder="New project name" required maxlength="100" aria-label="Project name">
         <input name="description" placeholder="Description (optional)" maxlength="5000" aria-label="Description">
-        <button type="submit" class="primary">Create project</button>
+        <button type="submit" class="primary"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Create</button>
       </form>
-      <ul id="project-list" class="project-list"></ul>
-      <p id="project-empty" class="empty" hidden>No projects yet. Create one, or ask an owner to invite you.</p>
+      <ul id="project-list" class="project-grid" aria-busy="false"></ul>
+      <div id="project-empty" class="empty-state" hidden>
+        <svg class="empty-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+        <h2>No projects yet</h2>
+        <p>Create your first project above, or ask a project owner to invite you.</p>
+        <button type="button" class="primary" id="empty-create">
+          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Create a project
+        </button>
+      </div>
     </section>
 
     <!-- =================================================== project detail -->
     <section id="view-project" class="view" hidden>
-      <button type="button" class="link back" id="back">← All projects</button>
+      <button type="button" class="ghost back" id="back">
+        <svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>All projects
+      </button>
 
-      <div class="card">
-        <div class="row-between">
-          <h1 id="project-name"></h1>
+      <div class="card hero" id="project-card" aria-busy="false">
+        <div class="hero-top">
+          <div class="hero-title">
+            <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg></span>
+            <h1 id="project-name"></h1>
+          </div>
           <span id="project-role" class="badge"></span>
         </div>
         <p id="project-description" class="description"></p>
+        <div class="usage" id="project-usage"></div>
         <p class="meta" id="project-meta"></p>
 
         <details id="edit-details">
-          <summary>Edit details</summary>
+          <summary><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg>Edit details</summary>
           <form id="form-edit" class="stack">
             <label>Name <input name="name" required maxlength="100"></label>
             <label>Description <textarea name="description" rows="3" maxlength="5000"></textarea></label>
@@ -85,26 +161,31 @@
       </div>
 
       <div class="card">
-        <div class="row-between">
-          <h2>Documents</h2>
-          <form id="form-upload" class="upload">
-            <label class="button">
-              Upload PDF / DOCX
-              <input type="file" name="files" accept=".pdf,.docx" multiple hidden>
-            </label>
-          </form>
+        <h2>Documents</h2>
+        <!-- Drop files here, or click / press Enter to choose them. -->
+        <div id="dropzone" class="dropzone" tabindex="0" role="button"
+             aria-label="Upload PDF or Word documents: drop files here or press Enter to choose">
+          <svg class="drop-icon" aria-hidden="true"><use href="#i-upload"/></svg>
+          <p><strong>Drop PDF or DOCX files here</strong> or click to choose</p>
+          <p class="hint">Up to 10 files at once · 10 MB each · 50 MB per project</p>
+          <input type="file" id="file-input" accept=".pdf,.docx" multiple hidden>
         </div>
-        <p class="hint">Up to 10 files at once, 10 MB each, 50 MB per project.</p>
-        <table class="documents">
-          <thead><tr><th>Name</th><th>Size</th><th>Updated</th><th><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="document-rows"></tbody>
-        </table>
-        <p id="document-empty" class="empty" hidden>No documents yet.</p>
+        <div id="upload-progress" class="upload-progress" hidden>
+          <div class="row-between"><span id="upload-label"></span><span id="upload-percent"></span></div>
+          <div class="bar"><div class="bar-fill" id="upload-bar"></div></div>
+        </div>
+
+        <ul id="document-list" class="document-list" aria-busy="false"></ul>
+        <div id="document-empty" class="empty-state small" hidden>
+          <svg class="empty-icon" aria-hidden="true"><use href="#i-file"/></svg>
+          <p>No documents yet - drop the first one above.</p>
+        </div>
       </div>
 
       <!-- Owner only. Hiding them is convenience - the API enforces it anyway. -->
       <div class="card owner-only">
-        <h2>Share</h2>
+        <h2><svg class="icon muted" aria-hidden="true"><use href="#i-users"/></svg>Share</h2>
+        <p class="hint">Participants can view, edit details and upload; only you can delete or invite.</p>
         <form id="form-invite" class="inline-form">
           <input name="login" placeholder="Login of a registered user" required minlength="3" maxlength="64"
                  pattern="[A-Za-z0-9_.\-]+" aria-label="Login to invite">
@@ -113,8 +194,8 @@
       </div>
 
       <div class="card owner-only danger-zone">
-        <h2>Delete project</h2>
-        <p>Deletes the project, its memberships and all its documents.</p>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Delete project</h2>
+        <p>Deletes the project, its memberships and all its documents. This cannot be undone.</p>
         <button type="button" class="danger" id="delete-project">Delete this project</button>
       </div>
     </section>
