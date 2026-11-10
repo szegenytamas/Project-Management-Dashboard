@@ -248,10 +248,9 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
   rationale, ORM vs. raw SQL, design decisions
 - [x] **Phase 7** – AWS: S3 bucket, Lambda (project size sum **and** limit enforcement), RDS,
   deployment on EC2, evidence (screenshots / logs)
-- [ ] **Phase 8** – Extensions: ~~seed data~~ (done: seed script + migration stairway test),
-  documented AI-assisted workflow, ~~continuous deployment~~ (done: OIDC + SSM Run Command),
-  ~~security hardening~~ (done: rate limit, headers, CORS, dependency + secret scanning,
-  OWASP checklist)
+- [x] **Phase 8** – Extensions: seed data + migration stairway test; continuous deployment
+  (GitHub OIDC + SSM Run Command); security hardening (rate limit, headers, CORS, dependency +
+  secret scanning, OWASP checklist); documented AI-assisted workflow
 - [x] **Phase 9** – Web UI (plain HTML/JS at `/app/`). Not done: the optional share link by email
 
 ## Development workflow
