@@ -10,13 +10,15 @@ FastAPI then runs `get_current_user` before the endpoint. If the request has
 no valid token, the endpoint never runs and the client gets 401.
 """
 
+import math
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path, status
+from fastapi import Depends, HTTPException, Path, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from project_dashboard.core.config import Settings, get_settings
+from project_dashboard.core.rate_limit import RateLimiter
 from project_dashboard.core.security import InvalidTokenError, decode_access_token
 from project_dashboard.db.models import User
 from project_dashboard.db.session import SessionDep
@@ -65,6 +67,24 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def limit_auth_requests(request: Request) -> None:
+    """Brute-force protection for POST /auth and POST /login (per client IP).
+
+    429 Too Many Requests with a Retry-After header (seconds), as RFC 6585 says.
+    Invalid requests count too: they also cost us work.
+    """
+    limiter: RateLimiter = request.app.state.auth_rate_limiter
+    client = request.client.host if request.client else "unknown"
+    retry_after = limiter.hit(client)
+    if retry_after is not None:
+        seconds = max(1, math.ceil(retry_after))
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"Too many attempts, try again in {seconds} seconds",
+            headers={"Retry-After": str(seconds)},
+        )
 
 
 def require_project_access(action: Action) -> Callable[..., Awaitable[ProjectAccess]]:

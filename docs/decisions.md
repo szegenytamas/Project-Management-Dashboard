@@ -38,6 +38,11 @@ Format: **decision** — *instead of* … — because ….
 | Same 401 for unknown user and wrong password, with a dummy hash | different messages | Prevents user enumeration by message or timing |
 | 422 responses **without** the submitted values | FastAPI's default handler | The default would echo passwords back |
 | Uniqueness decided by **database constraints** | check-then-insert | Atomic; no race between simultaneous requests |
+| **Rate limit** on `/auth` and `/login`: 10/min per IP, in memory, own small sliding-window class | slowapi; Redis; per-account lockout | One process on one server needs no shared store; no extra dependency; a per-account lockout would let anyone lock a victim out |
+| Security headers in a **pure ASGI middleware**; strict CSP except on `/docs` | `@app.middleware("http")`; no headers | Streams pass through untouched; Swagger UI needs CDN scripts |
+| **CORS off** by default, an explicit origin list when needed, no credentials | `allow_origins=["*"]` | No web UI exists yet; tokens travel in a header, so cookies are never needed |
+| CI scans with **pip-audit** (lockfile with hashes) and **gitleaks** (full history), blocking build and deploy | Dependabot PRs; scanning only new commits | Findings stop a release; no bot authors commits in the history; secrets in old commits are found too |
+| No HSTS header | HSTS now | HSTS is only valid over HTTPS, which needs a domain first |
 | `extra="forbid"` on request bodies | ignoring unknown fields | Rejects typos and mass assignment (`owner_id`, `role`) |
 
 ## Documents and S3

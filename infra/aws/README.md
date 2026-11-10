@@ -8,7 +8,7 @@ reviewable and versioned together with the code that relies on it.
 |---|---|
 | `s3-bucket-policy.json` | Bucket policy: deny any request that is not encrypted in transit (HTTPS only) |
 | `s3-lifecycle.json` | Lifecycle rule: clean up incomplete multipart uploads after 1 day |
-| `ec2-role-policy.json` | Inline policy of `project-dashboard-ec2-role`: document objects in the bucket, read the project's SSM parameters |
+| `ec2-role-policy.json` | Inline policy of `project-dashboard-ec2-role`: document objects in the bucket, read the API's two SSM parameters (app DB password, JWT key) |
 | `lambda-role-policy.json` | Inline policy of `project-dashboard-lambda-role`: list `projects/*`, delete objects there |
 | `github-oidc-trust-policy.json` | Trust policy of `project-dashboard-github-deploy`: only GitHub OIDC tokens for this repository's `production` environment |
 | `github-deploy-policy.json` | Permission policy of that role: run the deploy document on the API server, read the result |

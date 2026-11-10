@@ -16,6 +16,7 @@ documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 | [Database design](docs/database.md) | ER diagram, constraints, normalization, the denormalized total, **ORM vs. raw SQL** |
 | [Design decisions](docs/decisions.md) | Key choices and their alternatives, **REST conformance** |
 | [AWS deployment](docs/aws.md) | Deployed architecture, resources, security, **setup notes**, **evidence**, costs, teardown |
+| [Security](docs/security.md) | OWASP API Top 10 checklist, scanning, least privilege, known gaps |
 | [AI-assisted workflow](docs/ai-workflow.md) | How Claude Code was used: delegated, reviewed, decided |
 | [CLAUDE.md](CLAUDE.md) | Conventions the AI assistant works under |
 
@@ -194,6 +195,11 @@ In Swagger UI (`/docs`) click **Authorize** and paste the `access_token`.
   `JWT_SECRET_KEY` (≥ 32 characters) must come from the environment.
 - A wrong password and an unknown login return the same `401` in the same time.
 - `422` validation errors never echo the submitted values (e.g. passwords).
+- `POST /auth` and `POST /login` allow 10 requests per minute per client IP
+  (`AUTH_RATE_LIMIT_PER_MINUTE`); more get `429` with a `Retry-After` header.
+- Every response carries security headers (`nosniff`, no framing, a strict
+  Content-Security-Policy, no referrer). Browsers on other origins are refused unless listed in
+  `CORS_ALLOWED_ORIGINS`. More in [docs/security.md](docs/security.md).
 
 ## API
 
@@ -218,7 +224,7 @@ In Swagger UI (`/docs`) click **Authorize** and paste the `access_token`.
 All responses are JSON except file downloads. Errors: `401` not authenticated,
 `403` role not allowed, `404` not found **or no access** (existence is not leaked),
 `409` conflict, `413` size limit exceeded, `415` unsupported file type, `422` validation error,
-`503` document storage temporarily unavailable.
+`429` too many login/registration attempts, `503` document storage temporarily unavailable.
 
 ## Roadmap
 
@@ -234,7 +240,8 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
   deployment on EC2, evidence (screenshots / logs)
 - [ ] **Phase 8** – Extensions: ~~seed data~~ (done: seed script + migration stairway test),
   documented AI-assisted workflow, ~~continuous deployment~~ (done: OIDC + SSM Run Command),
-  security hardening
+  ~~security hardening~~ (done: rate limit, headers, CORS, dependency + secret scanning,
+  OWASP checklist)
 - [ ] **Phase 9** – *Optional:* web UI, share link via email
 
 ## Development workflow

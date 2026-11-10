@@ -213,7 +213,6 @@ the project completely, so no total stayed wrong.
 | **Management account** | The workload runs in the AWS Organization's management account, which SCP guardrails never restrict (the IAM policy simulator reports misleading denies there) | A dedicated member account for the workload |
 | **Changing public IP** | Stop/start gives the server a new address | An Elastic IP |
 | **Lambda password** | In the function's environment variables (encrypted at rest, visible to IAM users with Lambda read rights) | Read it from SSM via an interface endpoint (~7 USD/month), or RDS IAM authentication |
-| **EC2 role scope** | Still allowed to read the `admin` and `lambda` passwords needed for the one-time setup | Remove those two ARNs from `ec2-role-policy.json` after setup |
 | **Single-AZ, no autoscaling** | One server, one database instance | Multi-AZ RDS, an Auto Scaling group behind a load balancer |
 
 ## Operations

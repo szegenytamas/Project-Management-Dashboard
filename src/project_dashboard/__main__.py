@@ -13,6 +13,7 @@ def main() -> None:
         host=settings.host,
         port=settings.port,
         reload=settings.environment == "local",
+        server_header=False,  # do not advertise the server software
     )
 
 

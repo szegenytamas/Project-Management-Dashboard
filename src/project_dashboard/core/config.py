@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     jwt_secret_key: SecretStr = Field(min_length=32)
     jwt_algorithm: Literal["HS256"] = "HS256"
     jwt_expire_minutes: int = Field(default=60, gt=0)  # the brief: tokens last 1 hour
+    # Brute-force protection: requests to POST /auth and POST /login per client IP
+    # per minute. Generous for a person, far too slow for password guessing.
+    auth_rate_limit_per_minute: int = Field(default=10, gt=0)
+
+    # --- Browsers -------------------------------------------------------
+    # Web pages on these origins may call the API from JavaScript (CORS), e.g.
+    # ["http://localhost:5173"]. Empty = no cross-origin access at all, which is
+    # right while no web UI exists. As an environment variable: a JSON list.
+    cors_allowed_origins: list[str] = []
 
     # --- Document storage (S3) ------------------------------------------
     s3_bucket: str = "project-dashboard-documents"

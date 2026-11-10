@@ -8,13 +8,11 @@
       "Resource": "arn:aws:s3:::project-dashboard-documents-192274357234/projects/*"
     },
     {
-      "Sid": "ReadOwnSecrets",
+      "Sid": "ReadTheApiSecretsOnly",
       "Effect": "Allow",
       "Action": ["ssm:GetParameter", "ssm:GetParameters"],
       "Resource": [
         "arn:aws:ssm:eu-north-1:192274357234:parameter/project-dashboard/db/app-password",
-        "arn:aws:ssm:eu-north-1:192274357234:parameter/project-dashboard/db/admin-password",
-        "arn:aws:ssm:eu-north-1:192274357234:parameter/project-dashboard/db/lambda-password",
         "arn:aws:ssm:eu-north-1:192274357234:parameter/project-dashboard/jwt-secret-key"
       ]
     }
