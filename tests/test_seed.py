@@ -1,16 +1,20 @@
 """The demo-data seed: correct data, idempotent, and safe in production."""
 
+import logging
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from project_dashboard.core.config import Settings
+from project_dashboard.core.security import verify_password_async
 from project_dashboard.db import seed as seed_module
 from project_dashboard.db.models import Document, Project, ProjectMember, ProjectRole, User
 from project_dashboard.db.seed import (
     DEFAULT_PASSWORD,
     SeedError,
+    SeedReport,
     make_docx,
     make_pdf,
     seed,
@@ -18,7 +22,7 @@ from project_dashboard.db.seed import (
 )
 from project_dashboard.services.files import DOCX, PDF, detect_type
 from project_dashboard.storage import S3Storage
-from tests.conftest import bucket_keys
+from tests.conftest import MakeUser, bucket_keys
 
 
 async def count(session: AsyncSession, model: type) -> int:
@@ -134,6 +138,59 @@ def test_main_exits_with_an_error_instead_of_a_traceback(
     )  # fmt: skip
     monkeypatch.delenv("SEED_PASSWORD", raising=False)
     with pytest.raises(SystemExit) as exit_info:
-        seed_module.main()
+        seed_module.main([])  # [] = no command-line options
     assert exit_info.value.code == 1
     assert "SEED_PASSWORD" in caplog.text
+
+
+# ------------------------------------------------------- --reset-passwords --
+
+
+async def test_existing_demo_users_keep_their_password_by_default(
+    db_session: AsyncSession, storage: S3Storage, settings: Settings, make_user: MakeUser
+) -> None:
+    alice = await make_user("alice")  # created by hand before the seed ran
+    report = await seed(db_session, storage, settings, DEFAULT_PASSWORD)
+
+    assert report.users_existing == ["alice"] and report.passwords_reset == []
+    assert alice.user.password_hash == "not-a-real-hash"
+
+
+async def test_reset_passwords_sets_the_demo_password_on_existing_demo_users_only(
+    db_session: AsyncSession, storage: S3Storage, settings: Settings, make_user: MakeUser
+) -> None:
+    alice = await make_user("alice")
+    dave = await make_user("dave")  # not a demo account: must never be touched
+
+    report = await seed(db_session, storage, settings, DEFAULT_PASSWORD, reset_passwords=True)
+
+    assert report.passwords_reset == ["alice"]
+    assert sorted(report.users_created) == ["bob", "carol"]
+    await db_session.refresh(alice.user)
+    assert await verify_password_async(DEFAULT_PASSWORD, alice.user.password_hash)
+    await db_session.refresh(dave.user)
+    assert dave.user.password_hash == "not-a-real-hash"
+
+
+def test_summary_names_exactly_who_has_the_demo_password(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    received: list[bool] = []
+
+    async def fake_run(settings: Settings, *, reset_passwords: bool = False) -> SeedReport:
+        received.append(reset_passwords)
+        return SeedReport(users_created=["carol"], users_existing=["alice", "bob"])
+
+    monkeypatch.setattr(seed_module, "run", fake_run)
+    monkeypatch.setattr(seed_module, "get_settings", lambda: None)
+    caplog.set_level(logging.INFO)
+
+    seed_module.main([])
+
+    assert received == [False]
+    assert "Log in with the demo password as: carol" in caplog.text
+    assert "alice, bob kept their earlier password" in caplog.text
+
+    caplog.clear()
+    seed_module.main(["--reset-passwords"])
+    assert received == [False, True]
