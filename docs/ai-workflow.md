@@ -196,3 +196,29 @@ changed, and why. The conventions the AI works under are in [`CLAUDE.md`](../CLA
   - No Dependabot pull requests: I want to stay the only contributor in the history, so
     vulnerabilities are found by `pip-audit` in CI instead.
   - HTTPS is left as a documented gap, because it needs a domain name first.
+
+## Phase 9 – Web UI
+
+- **Delegated:**
+  - A browser UI in plain HTML, CSS and JavaScript (no framework, no build step), served by the
+    API at `/app/` with its own Content-Security-Policy, and later a design pass: logo and
+    colours, project cards, drag-and-drop upload with a progress bar, loading and empty states,
+    and a storage bar per project.
+- **Reviewed / verified myself:**
+  - I signed in to the live UI with the demo accounts and went through the main flows.
+  - My first login attempts failed: the API log showed `401` (wrong password) and `409` (I
+    tried to register `alice`, who already existed).
+  - On the server, `alice` and `bob` already existed from my Phase 7 tests, so the seed kept
+    their old passwords and only `carol` got the new one. We added `--reset-passwords`, which
+    changes only the three demo accounts.
+  - The first reset did nothing: the seed's output still had the old format. The server's local
+    `:latest` image was old, because continuous deployment pulls `sha-<commit>` images, and
+    `docker run` does not download an image it already has. Running the seed with the API's
+    running image fixed it, and the docs now say so.
+  - One pull request was closed by mistake instead of merged; I reopened and merged it.
+- **Decided or changed:**
+  - Decided on four design improvements: a clearer visual identity, drag-and-drop upload with
+    progress, loading and empty states, and a storage bar.
+    I left the browser's own confirmation dialogs as they are.
+  - The UI only hides buttons a participant may not use; the API still decides every
+    permission.
