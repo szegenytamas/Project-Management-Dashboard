@@ -181,3 +181,5 @@ service functions (`register_user`, `create_project`, `invite_user`, `upload_doc
 of writing rows directly, so the data obeys every rule the API enforces: argon2 hashes, exactly one
 owner per project, files in S3 under `projects/{id}/`, and a correct `total_size_bytes`. It is
 idempotent: users are looked up by login and projects by owner + name before anything is created.
+Existing users keep their passwords; `--reset-passwords` explicitly sets the demo password on the
+three demo accounts only (via `services/users.set_password`, a new argon2 hash and salt).

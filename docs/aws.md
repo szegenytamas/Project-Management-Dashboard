@@ -237,6 +237,10 @@ sudo --preserve-env=SEED_PASSWORD docker run --rm --env-file /etc/project-dashbo
 unset SEED_PASSWORD
 ```
 
+If `alice` or `bob` already existed (created by hand earlier), the seed keeps their passwords and
+says so. Append `--reset-passwords` to the `python -m project_dashboard.db.seed` line to give the
+three demo accounts the demo password; no other account is touched.
+
 **Update the Lambda:** `uv run python functions/size_limit/package.py`, then upload
 `functions/size_limit/build/size_limit.zip` in the console (Code → Upload from → .zip file) or with
 `aws lambda update-function-code --function-name project-dashboard-size-limit --zip-file fileb://functions/size_limit/build/size_limit.zip`.
