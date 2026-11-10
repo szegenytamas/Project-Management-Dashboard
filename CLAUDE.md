@@ -86,10 +86,13 @@ documents in S3, image published to GHCR on every merge, `docs/` for graders).
 Phase 7 done: deployed in eu-north-1 (custom VPC, EC2 + Docker, RDS PostgreSQL 17.9, S3,
 size-limit Lambda), documented with evidence in `docs/aws.md`; policies and server scripts in
 `infra/aws/`.
-Phase 8 in progress: 8a seed data + migration stairway test done; 8b continuous deployment
+Phase 8 done: 8a seed data + migration stairway test; 8b continuous deployment
 done (every merge to main deploys `sha-<commit>`); 8c security hardening done (rate limit,
 headers, CORS, pip-audit + gitleaks in CI, `docs/security.md`). 8d done (the user's AI-workflow text).
-Phase 9: web UI at `/app/` done. Not done (optional): share link by email.
+Phase 9 done: web UI at `/app/` (cards, drag-and-drop upload with progress, usage bars).
+Not done (optional): share link by email.
+On the server, run one-off commands with the API's running image
+(`docker inspect -f '{{.Config.Image}}' api`), never `:latest` - CD pulls `sha-<commit>` tags.
 See the roadmap in `README.md`.
 
 **AWS rule:** the user runs every AWS command that creates, changes or deletes resources.
