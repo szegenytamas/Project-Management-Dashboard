@@ -72,6 +72,7 @@ Format: **decision** — *instead of* … — because ….
 | Continuous deployment via **GitHub OIDC** + a role | an IAM user's access keys stored as GitHub secrets | Nothing long-lived to leak or rotate; credentials last one hour and only this repository's `production` environment gets them |
 | **SSM Run Command** with a **custom document** that only runs `deploy.sh` | SSH from CI; `AWS-RunShellScript` | No open port, no key; the CI role cannot run arbitrary commands as root, and the image tag is validated by a pattern |
 | Deploy **`sha-<commit>`**, serialized, never cancelled on `main` | deploy `:latest`; cancel older runs | Each merge deploys exactly the image it tested; a deployment is never interrupted half-way |
+| Trust policy matches GitHub's **immutable subject** (owner and repository IDs) | the name-only `repo:<owner>/<repo>` subject | IDs are never reused: a re-created or renamed repository with the same name cannot obtain the role |
 | Trust the GitHub **environment** `production` (branch rule: `main`) | trust `ref:refs/heads/main` | Adds deployment history and an optional approval step; other workflows on `main` cannot assume the role |
 | **HTTP only** for the demo | HTTPS via a load balancer + certificate | HTTPS needs a domain and ~18 USD/month for a load balancer; documented as a known limitation (tokens travel unencrypted) |
 

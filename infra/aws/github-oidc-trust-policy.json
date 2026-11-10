@@ -11,7 +11,7 @@
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:szegenytamas/Project-Management-Dashboard:environment:production"
+          "token.actions.githubusercontent.com:sub": "repo:szegenytamas@116868224/Project-Management-Dashboard@1445416289:environment:production"
         }
       }
     }
