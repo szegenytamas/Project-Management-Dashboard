@@ -5,7 +5,8 @@ resource carries the tag `Project = project-dashboard`. Policies and server scri
 [`infra/aws/`](../infra/aws/); this page explains how they fit together, how the setup was
 verified, and how to operate and remove it.
 
-**Live API:** `http://13.49.23.15/docs` (Swagger UI) while the server is running.
+**Live:** `http://13.49.23.15/` (web UI) and `http://13.49.23.15/docs` (Swagger UI) while the server
+is running.
 
 ## Deployed architecture
 

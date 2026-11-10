@@ -20,6 +20,15 @@ documents (PDF, DOCX). Built with FastAPI, PostgreSQL, Docker and AWS
 | [AI-assisted workflow](docs/ai-workflow.md) | How Claude Code was used: delegated, reviewed, decided |
 | [CLAUDE.md](CLAUDE.md) | Conventions the AI assistant works under |
 
+## Web UI
+
+Open the server's root - <http://localhost:8000/> locally, or the EC2 address in AWS - and sign in
+(after `python -m project_dashboard.db.seed`: `alice` / `bob` / `carol` with `Demo-Pass-2026!`).
+The UI covers every endpoint of the table below: register and sign in, list and create projects
+with your role, edit details, upload / download / replace / delete documents, invite users, delete
+a project. It is plain HTML, CSS and JavaScript served by the API itself (`/app/`), with its own
+Content-Security-Policy; see [architecture](docs/architecture.md#web-ui).
+
 ## Getting started
 
 Requirements: [uv](https://docs.astral.sh/uv/) and Docker Desktop.
@@ -242,7 +251,7 @@ All responses are JSON except file downloads. Errors: `401` not authenticated,
   documented AI-assisted workflow, ~~continuous deployment~~ (done: OIDC + SSM Run Command),
   ~~security hardening~~ (done: rate limit, headers, CORS, dependency + secret scanning,
   OWASP checklist)
-- [ ] **Phase 9** – *Optional:* web UI, share link via email
+- [x] **Phase 9** – Web UI (plain HTML/JS at `/app/`). Not done: the optional share link by email
 
 ## Development workflow
 

@@ -40,7 +40,7 @@ Format: **decision** — *instead of* … — because ….
 | Uniqueness decided by **database constraints** | check-then-insert | Atomic; no race between simultaneous requests |
 | **Rate limit** on `/auth` and `/login`: 10/min per IP, in memory, own small sliding-window class | slowapi; Redis; per-account lockout | One process on one server needs no shared store; no extra dependency; a per-account lockout would let anyone lock a victim out |
 | Security headers in a **pure ASGI middleware**; strict CSP except on `/docs` | `@app.middleware("http")`; no headers | Streams pass through untouched; Swagger UI needs CDN scripts |
-| **CORS off** by default, an explicit origin list when needed, no credentials | `allow_origins=["*"]` | No web UI exists yet; tokens travel in a header, so cookies are never needed |
+| **CORS off** by default, an explicit origin list when needed, no credentials | `allow_origins=["*"]` | The web UI is served from the same origin, so it needs no CORS; tokens travel in a header, so cookies are never needed |
 | CI scans with **pip-audit** (lockfile with hashes) and **gitleaks** (full history), blocking build and deploy | Dependabot PRs; scanning only new commits | Findings stop a release; no bot authors commits in the history; secrets in old commits are found too |
 | No HSTS header | HSTS now | HSTS is only valid over HTTPS, which needs a domain first |
 | `extra="forbid"` on request bodies | ignoring unknown fields | Rejects typos and mass assignment (`owner_id`, `role`) |
@@ -93,6 +93,17 @@ Format: **decision** — *instead of* … — because ….
 | Push the **tested** image to **GHCR** with the built-in token | rebuild for release; Docker Hub; ECR with stored keys | What is deployed is what was tested; no stored secret; ECR needs AWS credentials in CI |
 | Feature branches, merge commits, Conventional Commits | squash merges (Phases 1–3), direct pushes | Incremental, readable history; `main` only changes through green PRs |
 | `respect-gitignore = false` for ruff | ruff's default | Local lint must check exactly what CI checks |
+
+## Web UI
+
+| Decision | Instead of | Because |
+|---|---|---|
+| **Plain HTML/CSS/JS modules**, no build step | React, Vue, Next.js | Small UI; every line can be read and explained; no npm toolchain or dependencies to audit |
+| Served **by the API** at `/app/`, packaged with it | a separate static host (S3 + CloudFront) | Same origin: no CORS, one deployment, the UI version always matches the API |
+| Token in **sessionStorage** | `localStorage`; an HttpOnly cookie | Survives a reload but not closing the tab; a cookie would need CSRF protection and API changes |
+| DOM built with **`textContent`**; strict CSP without `'unsafe-inline'` | `innerHTML` templates | Server data can never become markup; injected code could not run anyway |
+| UI files with **`Cache-Control: no-cache`** (+ ETag) | no header | Found in testing: browsers kept an old file after an update; now they revalidate and get a 304 when unchanged |
+| Downloads via `fetch` + `blob:` URL | a plain link | A link cannot send the `Authorization` header |
 
 ## REST conformance
 

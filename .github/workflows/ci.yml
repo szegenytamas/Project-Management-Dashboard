@@ -228,6 +228,13 @@ jobs:
           if grep -qi '^server:' <<<"$headers"; then echo "Server header is exposed"; exit 1; fi
           echo "security headers OK"
 
+          # The web UI ships inside the image (package data) and has its own CSP.
+          ui=$(curl -sS --fail-with-body -D - http://localhost:8000/app/)
+          grep -q '<title>Project Dashboard</title>' <<<"$ui"
+          grep -qi "^content-security-policy: default-src 'none'; script-src 'self'" <<<"$ui"
+          curl -sS --fail-with-body -o /dev/null http://localhost:8000/app/app.js
+          echo "web UI OK"
+
           # --fail-with-body: on a 4xx/5xx, still print the response (e.g. the
           # 422 reason) before failing the step.
           api() { curl -sS --fail-with-body "$@"; }

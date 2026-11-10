@@ -9,7 +9,7 @@ reacts to S3 events to keep each project's total file size correct and enforce i
 
 ```mermaid
 flowchart LR
-    client["Client<br/>Swagger UI · curl · requests.http"]
+    client["Client<br/>web UI (/app/) · Swagger UI · curl"]
     subgraph aws["AWS (Phase 7)"]
         api["FastAPI container<br/>uvicorn on EC2"]
         db[("PostgreSQL<br/>RDS")]
@@ -18,7 +18,7 @@ flowchart LR
     end
     ci["GitHub Actions"] -->|push tested image| ghcr[("GHCR<br/>container registry")]
     ghcr -->|pull image| api
-    client -->|"HTTPS · JSON · Bearer JWT"| api
+    client -->|"HTTP · JSON · Bearer JWT"| api
     api -->|"SQL (asyncpg)"| db
     api -->|"put · get · delete objects"| s3
     s3 -->|ObjectCreated / ObjectRemoved event| lambda
@@ -28,6 +28,7 @@ flowchart LR
 | Component | Responsibility |
 |---|---|
 | **API** (`src/project_dashboard`) | Authentication, authorization, validation, business rules, JSON API |
+| **Web UI** (`src/project_dashboard/web`) | Plain HTML/CSS/JavaScript served by the API at `/app/`; a client of the same JSON API |
 | **PostgreSQL** | Users, projects, memberships with roles, document metadata |
 | **S3** | The document bytes, under `projects/{project_id}/{random}.{pdf,docx}` |
 | **Lambda** (Phase 7) | On every S3 change: sum the project's file sizes, update the total, enforce the limit |
@@ -35,6 +36,33 @@ flowchart LR
 
 Locally the same pieces run in Docker Compose: `db` (PostgreSQL 17), `s3` (the moto S3
 emulator), `migrate` (one-off) and `api`.
+
+## Web UI
+
+Three static files (`index.html`, `styles.css`, `app.js`), shipped inside the Python package and
+served by the API at `/app/` (`/` redirects there). No framework and no build step.
+
+```mermaid
+sequenceDiagram
+    participant B as Browser (/app/)
+    participant A as API (same origin)
+    B->>A: GET /app/ , app.js , styles.css (Cache-Control: no-cache, ETag)
+    B->>A: POST /login {login, password}
+    A-->>B: {access_token, expires_in}
+    Note over B: token in sessionStorage<br/>(this tab only)
+    B->>A: GET /projects  Authorization: Bearer ...
+    A-->>B: JSON - rendered with textContent
+    B->>A: GET /document/7 (fetch with the token)
+    A-->>B: file stream → blob: URL → browser download
+```
+
+- **Same origin** as the API: no CORS needed, the token never goes to another site.
+- **Its own Content-Security-Policy**: scripts, styles and requests only from this site, no
+  inline code. Server data is inserted with `textContent`, never `innerHTML` (a test guards it).
+- **The server decides**: the UI hides owner-only buttons for participants, but every
+  permission is enforced by the API exactly as for Swagger or curl.
+- **Downloads** are fetched with the `Authorization` header (a plain link cannot send it) and
+  saved under the original name from `Content-Disposition: filename*=UTF-8''...`.
 
 ## Code layers
 
