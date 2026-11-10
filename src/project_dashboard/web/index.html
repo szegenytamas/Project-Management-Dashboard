@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- One ES module, no inline script: the page's Content-Security-Policy allows
+       only scripts from this site ('self'), so injected inline code cannot run. -->
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" id="home-link">Project Dashboard</a>
+    <div class="session" id="session" hidden>
+      <span>Signed in as <strong id="session-login"></strong></span>
+      <button type="button" class="link" id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Messages for every view; aria-live makes screen readers announce them. -->
+  <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+  <main>
+    <!-- ================================================= sign in / register -->
+    <section id="view-auth" class="view" hidden>
+      <div class="card narrow">
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" id="tab-login" aria-selected="true">Sign in</button>
+          <button type="button" role="tab" id="tab-register" aria-selected="false">Create account</button>
+        </div>
+
+        <form id="form-login" class="stack">
+          <label>Login <input name="login" autocomplete="username" required maxlength="64"></label>
+          <label>Password <input name="password" type="password" autocomplete="current-password" required maxlength="128"></label>
+          <button type="submit" class="primary">Sign in</button>
+        </form>
+
+        <form id="form-register" class="stack" hidden>
+          <label>Login <input name="login" autocomplete="username" required minlength="3" maxlength="64"
+                              pattern="[A-Za-z0-9_.\-]+" title="Letters, digits, _ . -"></label>
+          <label>Password <input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></label>
+          <label>Repeat password <input name="repeat_password" type="password" autocomplete="new-password" required></label>
+          <p class="hint">12–128 characters with an uppercase letter, a lowercase letter, a digit and a
+            special character. It must not contain your login.</p>
+          <button type="submit" class="primary">Create account</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================================================== project list -->
+    <section id="view-projects" class="view" hidden>
+      <div class="row-between">
+        <h1>My projects</h1>
+      </div>
+      <form id="form-create" class="card inline-form">
+        <input name="name" placeholder="New project name" required maxlength="100" aria-label="Project name">
+        <input name="description" placeholder="Description (optional)" maxlength="5000" aria-label="Description">
+        <button type="submit" class="primary">Create project</button>
+      </form>
+      <ul id="project-list" class="project-list"></ul>
+      <p id="project-empty" class="empty" hidden>No projects yet. Create one, or ask an owner to invite you.</p>
+    </section>
+
+    <!-- =================================================== project detail -->
+    <section id="view-project" class="view" hidden>
+      <button type="button" class="link back" id="back">← All projects</button>
+
+      <div class="card">
+        <div class="row-between">
+          <h1 id="project-name"></h1>
+          <span id="project-role" class="badge"></span>
+        </div>
+        <p id="project-description" class="description"></p>
+        <p class="meta" id="project-meta"></p>
+
+        <details id="edit-details">
+          <summary>Edit details</summary>
+          <form id="form-edit" class="stack">
+            <label>Name <input name="name" required maxlength="100"></label>
+            <label>Description <textarea name="description" rows="3" maxlength="5000"></textarea></label>
+            <button type="submit" class="primary">Save</button>
+          </form>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="row-between">
+          <h2>Documents</h2>
+          <form id="form-upload" class="upload">
+            <label class="button">
+              Upload PDF / DOCX
+              <input type="file" name="files" accept=".pdf,.docx" multiple hidden>
+            </label>
+          </form>
+        </div>
+        <p class="hint">Up to 10 files at once, 10 MB each, 50 MB per project.</p>
+        <table class="documents">
+          <thead><tr><th>Name</th><th>Size</th><th>Updated</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="document-rows"></tbody>
+        </table>
+        <p id="document-empty" class="empty" hidden>No documents yet.</p>
+      </div>
+
+      <!-- Owner only. Hiding them is convenience - the API enforces it anyway. -->
+      <div class="card owner-only">
+        <h2>Share</h2>
+        <form id="form-invite" class="inline-form">
+          <input name="login" placeholder="Login of a registered user" required minlength="3" maxlength="64"
+                 pattern="[A-Za-z0-9_.\-]+" aria-label="Login to invite">
+          <button type="submit">Invite as participant</button>
+        </form>
+      </div>
+
+      <div class="card owner-only danger-zone">
+        <h2>Delete project</h2>
+        <p>Deletes the project, its memberships and all its documents.</p>
+        <button type="button" class="danger" id="delete-project">Delete this project</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a href="/docs">API documentation</a>
+  </footer>
+</body>
+</html>
